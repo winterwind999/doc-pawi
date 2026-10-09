@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ErrorState, KeyValueRow, LoadingState, Screen, SectionHeader } from '@/components/ui/Layout';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { formatDate, formatTimestamp } from '@/lib/dates';
+import { formatDate, formatTimestamp, isValidIsoDate } from '@/lib/dates';
 import { getDoctor } from '@/lib/db/repositories/doctors';
 import { getDocument } from '@/lib/db/repositories/documents';
 import { deleteRecord, getRecord } from '@/lib/db/repositories/records';
@@ -103,7 +103,11 @@ export default function RecordDetailScreen() {
             <KeyValueRow key={`m${i}`} label="Medication (as written)" value={[m.name, m.strength, m.instructions].filter(Boolean).join(' · ')} />
           ))}
           {vaccinations.map((v, i) => (
-            <KeyValueRow key={`v${i}`} label="Vaccination (as written)" value={[v.vaccine, v.dose, v.date].filter(Boolean).join(' · ')} />
+            <KeyValueRow
+              key={`v${i}`}
+              label="Vaccination (as written)"
+              value={[v.vaccine, v.dose, isValidIsoDate(v.date) ? formatDate(v.date) : v.date].filter(Boolean).join(' · ')}
+            />
           ))}
         </Card>
       ) : null}

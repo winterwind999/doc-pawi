@@ -49,7 +49,8 @@ export default function BirthDateStep() {
         }}
         error={error}
         quickPicks="none"
-        hint="Format: YYYY-MM-DD (e.g. 1992-04-15)"
+        minDate="1900-01-01"
+        maxDate={todayLocal()}
       />
     </OnboardingStep>
   );

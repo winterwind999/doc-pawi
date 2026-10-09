@@ -8,6 +8,7 @@ import { Linking, Text, View } from 'react-native';
 import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
 import { ListItem, Screen, SectionHeader } from '@/components/ui/Layout';
+import { formatDate, todayLocal } from '@/lib/dates';
 import { runFullPipeline } from '@/lib/services/document-jobs';
 import { importDocument, type ImportSource } from '@/lib/services/document-service';
 import { useUnlockedSession } from '@/stores/session-store';
@@ -48,7 +49,7 @@ export default function ImportDocumentScreen() {
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.9 });
       if (result.canceled || !result.assets?.[0]) return;
       const a = result.assets[0];
-      await finish({ uri: a.uri, name: a.fileName ?? `Photo ${new Date().toLocaleDateString()}.jpg`, mimeType: a.mimeType ?? 'image/jpeg', size: a.fileSize });
+      await finish({ uri: a.uri, name: a.fileName ?? `Photo ${formatDate(todayLocal())}.jpg`, mimeType: a.mimeType ?? 'image/jpeg', size: a.fileSize });
     });
 
   const gallery = () =>

@@ -74,7 +74,7 @@ export function MedicationForm({ existing }: { existing?: MedicationWithSchedule
         <ChoiceChips label="Prescribed by (optional)" options={doctors.data.map((d) => ({ value: d.id, label: d.name }))} value={prescriber} onChange={setPrescriber} allowDeselect />
       ) : null}
       <DateField label="Start date" value={startDate} onChange={setStartDate} error={errors.start_date} />
-      <DateField label="End date" value={endDate} onChange={setEndDate} error={errors.end_date} quickPicks="none" hint="Leave empty if there is no planned end date." />
+      <DateField label="End date" value={endDate} onChange={setEndDate} error={errors.end_date} quickPicks="none" hint="Leave empty if there is no planned end date." minDate={startDate || undefined} />
 
       <SectionHeader title="Daily dose times" actionLabel="Add time" onAction={() => setSchedules((s) => [...s, { time_of_day: '', dose_label: '' }])} />
       {errors.schedules ? <Text className="text-sm text-coral-600">{errors.schedules}</Text> : null}

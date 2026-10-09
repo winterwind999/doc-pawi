@@ -85,7 +85,7 @@ export default function ProfileScreen() {
         <>
           <TextField label="Name" value={name} onChangeText={setName} required error={errors.display_name} />
           <ChoiceChips label="Sex" options={SEX_VALUES.map((v) => ({ value: v, label: SEX_LABELS[v] }))} value={sex} onChange={setSex} allowDeselect />
-          <DateField label="Date of birth" value={birth} onChange={setBirth} error={errors.birth_date} quickPicks="none" />
+          <DateField label="Date of birth" value={birth} onChange={setBirth} error={errors.birth_date} quickPicks="none" minDate="1900-01-01" maxDate={todayLocal()} />
           <SectionHeader title="Height" />
           <ChoiceChips options={HEIGHT_UNITS.map((v) => ({ value: v, label: v }))} value={heightUnit} onChange={(v) => v && setHeightUnit(v)} />
           <TextField label={`Height (${heightUnit})`} value={height} onChangeText={setHeight} keyboardType="decimal-pad" error={errors.height_value} />

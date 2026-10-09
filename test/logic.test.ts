@@ -7,7 +7,7 @@ import {
   normalizeForMatch,
   parseExtraction,
 } from '@/lib/ai/extraction';
-import { describeTimings, formatModelText } from '@/lib/ai/format-text';
+import { describeTimings, formatModelText, humanizeDates } from '@/lib/ai/format-text';
 import { asksAboutDoseChange, assessMessage } from '@/lib/ai/safety';
 import { addDays, ageOn, formatTimeOfDay, greetingFor, isValidIsoDate, relativeDay } from '@/lib/dates';
 import type { ActivitySummary } from '@/lib/db/repositories/stats';
@@ -233,5 +233,16 @@ describe('summary consistency check', () => {
     const payload = extractionToProposal(extraction, { ungrounded: [], checked: 4 }, 'Doc', '2026-10-10');
     expect(payload.unverified_fields).toContain('summary');
     expect(payload.warnings).toHaveLength(1);
+  });
+});
+describe('readable dates in model text', () => {
+  it('rewrites real ISO dates and leaves everything else alone', () => {
+    expect(humanizeDates('Dose 2 on 2026-04-06 at Quezon City Health Center; ref 2026-13-45; code 12-2026-01')).toBe(
+      'Dose 2 on Apr 6, 2026 at Quezon City Health Center; ref 2026-13-45; code 12-2026-01',
+    );
+  });
+
+  it('applies to chat answers', () => {
+    expect(formatModelText('Completed on 2026-10-01.')).toEqual([[{ text: 'Completed on Oct 1, 2026.', bold: false }]]);
   });
 });

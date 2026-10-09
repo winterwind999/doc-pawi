@@ -9,7 +9,7 @@ import { SegmentedTabs } from '@/components/ui/Choice';
 import { EmptyState, ErrorState, ListItem, LoadingState, Screen, SectionHeader } from '@/components/ui/Layout';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import { addDays, formatDate, formatTimeOfDay, localTimeOfDay, todayLocal } from '@/lib/dates';
+import { addDays, formatDate, formatTimeOfDay, formatTimestamp, localTimeOfDay, todayLocal } from '@/lib/dates';
 import { getDoseSlotsForDate, listDoseHistory, listMedications } from '@/lib/db/repositories/medications';
 import { MEDICATION_FORM_LABELS } from '@/lib/labels';
 import {
@@ -163,7 +163,7 @@ export default function MedsScreen() {
                   <Text className="text-base font-semibold text-ink">{h.medication_name}</Text>
                   <Text className="text-xs text-ink-muted">
                     Scheduled {formatDate(h.scheduled_for.slice(0, 10))} {formatTimeOfDay(h.scheduled_for.slice(11))} · recorded{' '}
-                    {new Date(h.event_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    {formatTimestamp(h.event_at)}
                   </Text>
                 </View>
                 <StatusBadge label={h.status === 'taken' ? 'Taken' : 'Skipped'} tone={h.status === 'taken' ? 'success' : 'neutral'} />

@@ -7,6 +7,7 @@ import { ChoiceChips } from '@/components/ui/Choice';
 import { DateField } from '@/components/ui/DateField';
 import { Screen } from '@/components/ui/Layout';
 import { TextField } from '@/components/ui/TextField';
+import { todayLocal } from '@/lib/dates';
 import { EVENT_STATUSES, EVENT_TYPES, type EventStatus, type EventType } from '@/lib/db/models';
 import { getEvent, insertEvent, updateEvent } from '@/lib/db/repositories/treatments';
 import { EVENT_STATUS_LABELS, EVENT_TYPE_LABELS } from '@/lib/labels';
@@ -75,7 +76,7 @@ export default function TreatmentEventScreen() {
       <ChoiceChips label="Type" options={EVENT_TYPES.map((v) => ({ value: v, label: EVENT_TYPE_LABELS[v] }))} value={type} onChange={setType} error={errors.event_type} />
       <ChoiceChips label="Status" options={EVENT_STATUSES.map((v) => ({ value: v, label: EVENT_STATUS_LABELS[v] }))} value={status} onChange={setStatus} error={errors.status} />
       {status === 'completed' ? (
-        <DateField label="Date completed" value={completed} onChange={setCompleted} error={errors.completed_date} />
+        <DateField label="Date completed" value={completed} onChange={setCompleted} error={errors.completed_date} maxDate={todayLocal()} />
       ) : null}
       <DateField
         label="Scheduled date"
@@ -84,7 +85,8 @@ export default function TreatmentEventScreen() {
         error={errors.scheduled_date}
         quickPicks="future"
         required={status === 'scheduled'}
-        hint={status === 'scheduled' ? 'Required for scheduled events (YYYY-MM-DD).' : 'Optional (YYYY-MM-DD).'}
+        minDate={status === 'scheduled' ? todayLocal() : undefined}
+        hint={status === 'scheduled' ? 'Required for scheduled events.' : 'Optional.'}
       />
       <TextField label="Facility" value={facility} onChangeText={setFacility} error={errors.facility} />
       <TextField label="Notes" value={notes} onChangeText={setNotes} multiline error={errors.notes} />

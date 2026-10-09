@@ -74,7 +74,7 @@ export function TreatmentForm({ existing, initialKind }: { existing?: TreatmentR
       <ChoiceChips label="Type" options={TREATMENT_KINDS.map((v) => ({ value: v, label: TREATMENT_KIND_LABELS[v] }))} value={kind} onChange={setKind} error={errors.kind} />
       <ChoiceChips label="Status" options={TREATMENT_STATUSES.map((v) => ({ value: v, label: TREATMENT_STATUS_LABELS[v] }))} value={status} onChange={setStatus} error={errors.status} />
       <DateField label="Start date" value={startDate} onChange={setStartDate} error={errors.start_date} />
-      <DateField label="End date" value={endDate} onChange={setEndDate} error={errors.end_date} quickPicks="none" hint="Leave empty if ongoing." />
+      <DateField label="End date" value={endDate} onChange={setEndDate} error={errors.end_date} quickPicks="none" hint="Leave empty if ongoing." minDate={startDate || undefined} />
       <TextField label="Facility" value={facility} onChangeText={setFacility} error={errors.facility} />
       {doctors.data?.length ? (
         <ChoiceChips label="Doctor (optional)" options={doctors.data.map((d) => ({ value: d.id, label: d.name }))} value={doctorId} onChange={setDoctorId} allowDeselect />

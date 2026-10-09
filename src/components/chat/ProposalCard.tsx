@@ -10,6 +10,7 @@ import { DateField } from '@/components/ui/DateField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { TextField } from '@/components/ui/TextField';
 import { useLiveQuery } from '@/hooks/use-live-query';
+import { formatDate, todayLocal } from '@/lib/dates';
 import { RECORD_CATEGORIES, TREATMENT_KINDS, type RecordProposalRow } from '@/lib/db/models';
 import { listTreatments } from '@/lib/db/repositories/treatments';
 import { CATEGORY_LABELS, TREATMENT_KIND_LABELS } from '@/lib/labels';
@@ -53,7 +54,7 @@ function RecordFields({
         error={errors.category}
       />
       <TextField label="Title" value={r.title} onChangeText={(title) => set({ title })} error={errors.title} required />
-      <DateField label="Date" value={r.event_date ?? ''} onChange={(v) => set({ event_date: v || null })} error={errors.event_date} />
+      <DateField label="Date" value={r.event_date ?? ''} onChange={(v) => set({ event_date: v || null })} error={errors.event_date} maxDate={todayLocal()} />
       <TextField label="Clinic or facility" value={r.facility ?? ''} onChangeText={(v) => set({ facility: v || null })} error={errors.facility} />
       <TextField label="Summary" value={r.summary ?? ''} onChangeText={(v) => set({ summary: v || null })} multiline error={errors.summary} />
     </View>
@@ -120,7 +121,7 @@ function EventFields({
         }
       />
       {e.status === 'completed' ? (
-        <DateField label="Date completed" value={e.completed_date ?? ''} onChange={(v) => setE({ completed_date: v || null })} error={errors.completed_date} />
+        <DateField label="Date completed" value={e.completed_date ?? ''} onChange={(v) => setE({ completed_date: v || null })} error={errors.completed_date} maxDate={todayLocal()} />
       ) : (
         <DateField
           label="Scheduled date"
@@ -128,6 +129,7 @@ function EventFields({
           onChange={(v) => setE({ scheduled_date: v || null })}
           error={errors.scheduled_date}
           quickPicks="future"
+          minDate={todayLocal()}
           required
         />
       )}
@@ -144,7 +146,7 @@ function Summary({ payload }: { payload: ProposalPayload }) {
       <View className="gap-1">
         <Text className="text-base font-semibold text-ink">{r.title}</Text>
         <Text className="text-sm text-ink-muted">
-          {CATEGORY_LABELS[r.category]} · {r.event_date ?? 'date not given'}
+          {CATEGORY_LABELS[r.category]} · {formatDate(r.event_date, 'date not given')}
           {r.facility ? ` · ${r.facility}` : ''}
         </Text>
         {r.summary ? <Text className="text-sm text-ink">{r.summary}</Text> : null}
@@ -156,7 +158,10 @@ function Summary({ payload }: { payload: ProposalPayload }) {
     <View className="gap-1">
       <Text className="text-base font-semibold text-ink">{e.title}</Text>
       <Text className="text-sm text-ink-muted">
-        {payload.treatment.title} · {e.status === 'completed' ? `completed ${e.completed_date ?? '(date not given)'}` : `scheduled ${e.scheduled_date ?? '(date needed)'}`}
+        {payload.treatment.title} ·{' '}
+        {e.status === 'completed'
+          ? `completed ${formatDate(e.completed_date, '(date not given)')}`
+          : `scheduled ${formatDate(e.scheduled_date, '(date needed)')}`}
         {e.facility ? ` · ${e.facility}` : ''}
       </Text>
     </View>

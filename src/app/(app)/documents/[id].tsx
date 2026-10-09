@@ -17,7 +17,7 @@ import { TextField } from '@/components/ui/TextField';
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { checkSummaryConsistency } from '@/lib/ai/extraction';
 import { formatBytes } from '@/lib/ai/model-catalog';
-import { formatTimestamp } from '@/lib/dates';
+import { formatTimestamp, todayLocal } from '@/lib/dates';
 import { RECORD_CATEGORIES, type MedicalDocumentRow } from '@/lib/db/models';
 import { getDocument } from '@/lib/db/repositories/documents';
 import { listProposalsForDocument } from '@/lib/db/repositories/proposals';
@@ -157,7 +157,7 @@ function ReviewForm({ proposalId, initial, docText }: { proposalId: string; init
         error={errors.category}
       />
       <TextField label="Title" value={r.title} onChangeText={(title) => set({ title })} error={errors.title} required />
-      <DateField label="Document date" value={r.event_date ?? ''} onChange={(v) => set({ event_date: v || null })} error={errors.event_date} />
+      <DateField label="Document date" value={r.event_date ?? ''} onChange={(v) => set({ event_date: v || null })} error={errors.event_date} maxDate={todayLocal()} />
       <TextField
         label={`Facility${unverified.has('facility') ? ' (verify)' : ''}`}
         value={r.facility ?? ''}

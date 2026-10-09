@@ -9,6 +9,7 @@ import { DateField } from '@/components/ui/DateField';
 import { Screen } from '@/components/ui/Layout';
 import { TextField } from '@/components/ui/TextField';
 import { useLiveQuery } from '@/hooks/use-live-query';
+import { todayLocal } from '@/lib/dates';
 import { RECORD_CATEGORIES, type MedicalRecordRow, type RecordCategory } from '@/lib/db/models';
 import { listDoctors } from '@/lib/db/repositories/doctors';
 import { insertRecord, updateRecord } from '@/lib/db/repositories/records';
@@ -73,7 +74,7 @@ export function RecordForm({ existing }: { existing?: MedicalRecordRow }) {
         error={errors.category}
       />
       <TextField label="Title" value={title} onChangeText={setTitle} required error={errors.title} placeholder="e.g. Annual check-up" maxLength={160} />
-      <DateField label="Date" value={date} onChange={setDate} error={errors.event_date} hint="When it happened (YYYY-MM-DD). Leave empty if unknown." />
+      <DateField label="Date" value={date} onChange={setDate} error={errors.event_date} hint="When it happened. Leave empty if unknown." maxDate={todayLocal()} />
       <TextField label="Clinic, hospital, or lab" value={facility} onChangeText={setFacility} error={errors.facility} />
       {doctors.data?.length ? (
         <ChoiceChips
