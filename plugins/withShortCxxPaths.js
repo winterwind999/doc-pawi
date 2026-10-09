@@ -6,7 +6,8 @@ const { withSettingsGradle } = require('expo/config-plugins');
  * 1. Short CMake staging paths. Libraries stage CMake files under
  *    `node_modules/<lib>/android/.cxx/...`; with a long project path the deepest prefab files
  *    exceed the 260-character MAX_PATH limit, ninja cannot stat them, and the build loops with
- *    "manifest 'build.ninja' still dirty after 100 tries". Staging moves to %LOCALAPPDATA%\dpcxx.
+ *    "manifest 'build.ninja' still dirty after 100 tries". Staging moves to %LOCALAPPDATA%\dpcxx,
+ *    or to DOC_PAWI_CXX_ROOT when set (e.g. a short folder on a drive with more free space).
  *
  * 2. Bounded C++ parallelism. Ninja otherwise runs one clang per CPU core; llama.rn's JSI
  *    sources need ~1–2 GB each, which exhausted memory on a 16 GB machine ("LLVM ERROR: out of
@@ -19,7 +20,9 @@ const MARKER = '// doc-pawi: Windows native build settings';
 const SNIPPET = `
 ${MARKER}
 if (System.getProperty('os.name').toLowerCase().contains('windows')) {
-  def dpShortCxxRoot = new File(System.getenv('LOCALAPPDATA') ?: System.getProperty('java.io.tmpdir'), 'dpcxx')
+  def dpShortCxxRoot = System.getenv('DOC_PAWI_CXX_ROOT') ?
+    new File(System.getenv('DOC_PAWI_CXX_ROOT')) :
+    new File(System.getenv('LOCALAPPDATA') ?: System.getProperty('java.io.tmpdir'), 'dpcxx')
   def dpCxxJobs = (System.getenv('DOC_PAWI_CXX_JOBS') ?: '2')
   gradle.beforeProject { sub ->
     ['com.android.library', 'com.android.application'].each { pluginId ->
