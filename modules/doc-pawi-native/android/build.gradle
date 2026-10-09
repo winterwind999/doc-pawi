@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.docpawinative'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.docpawinative"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  // Bundled (not Google Play services) model: OCR works offline immediately after install.
+  implementation 'com.google.mlkit:text-recognition:16.0.1'
+}
