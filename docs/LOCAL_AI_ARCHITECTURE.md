@@ -9,7 +9,7 @@
 |---|---|---|---|
 | Language model | Qwen3 1.7B Q4_K_M (default) or Qwen3 0.6B Q8_0, GGUF | Phone CPU | No (after the one-time download) |
 | Inference runtime | llama.cpp b10256 via `llama.rn` 0.12.9 (`src/lib/ai/llama-engine.ts`) | Phone CPU, JSI native threads | No |
-| Model manager | `src/stores/model-store.ts` (download, SHA-256 verify, load/unload, test prompt) | Phone | Download only |
+| Model manager | `src/stores/model-store.ts` (download, SHA-256 verify, load/unload, CPU-thread setting, test prompt, llama.cpp benchmark, prompt prefill) | Phone | Download only |
 | Medical-context retrieval | `src/lib/ai/retrieval.ts` (intent + keyword router over repositories) | Phone | No |
 | Bounded agent tools | `src/lib/ai/agent-tools.ts` (2 proposal tools, Zod-validated) | Phone | No |
 | OCR | ML Kit Text Recognition v2, bundled Latin model (`modules/doc-pawi-native`) | Phone | No* |
@@ -40,8 +40,9 @@ stateDiagram-v2
 ```
 
 - Files live in app-private storage: `files/models/<file>.gguf` plus `manifest.json` (verified checksums, selected model). They are shared by all local profiles and contain no personal data.
-- Context parameters: `n_ctx 4096`, `n_batch/n_ubatch 512`, `n_gpu_layers 0` (CPU), `use_mmap true`, `use_mlock false`, `ctx_shift false`, f16 KV cache. Threads use llama.rn's default (up to 4, pinned to the fastest cores).
-- Only one inference job runs at a time (`activeJob`: chat, document, or test). The UI blocks a second job with an explanation.
+- Context parameters: `n_ctx 4096`, `n_batch/n_ubatch 512`, `n_gpu_layers 0` (CPU), `use_mmap true`, `use_mlock false`, `ctx_shift false`, **8-bit (`q8_0`) K and V cache** (llama.cpp then enables flash attention automatically, which a quantized V cache requires). Threads: llama.rn's default (up to 4) unless the user picks 6 or 8 on the AI model screen; changing it reloads the model. On the test phone 6 threads were fastest for chat.
+- Why q8_0: on the test phone, generation 1,000 tokens deep into a prompt — where chat answers are written — rose from 2.7 to 3.6 tok/s in llama.cpp's benchmark, and the app's native memory fell from about 1.64 GB to 1.43 GB. Prompt reading is somewhat slower (15.8 → 13.3 tok/s), which the prefill below largely hides.
+- Only one inference job runs at a time (`activeJob`: chat, document, or test). The UI blocks a second job with an explanation. Engine calls are serialized by a lock; a prefill is not a job and simply runs first if the user sends during it.
 - Locking or signing out stops generation and clears the KV cache so no conversation tokens remain in the context; model weights stay loaded for a quick return.
 
 ## 3. Conversation flow
@@ -56,6 +57,7 @@ sequenceDiagram
   participant DB as SQLCipher DB
   participant M as llama.cpp (on device)
   participant P as proposals
+  UI->>M: on opening Chats / a conversation: prefill static prompt + tools (skipped if already cached)
   U->>UI: message
   UI->>CS: sendChatMessage
   CS->>DB: save user message
@@ -65,9 +67,9 @@ sequenceDiagram
   R-->>CS: context block + sources + "Not recorded: …"
   CS->>DB: assistant placeholder (status generating)
   CS->>M: messages + 2 proposal tools (Jinja template, thinking off)
-  M-->>UI: streamed visible text
+  M-->>UI: streamed visible text (≈ 8 UI updates/s)
   M-->>CS: final text + tool calls + timings
-  CS->>CS: Zod-validate each tool call (max 2)
+  CS->>CS: Zod-validate each tool call (max 2), mark a facility the user did not mention
   CS->>DB: transaction: assistant message + pending proposals
   UI->>U: answer, sources used, model + tok/s, proposal cards
   U->>P: Confirm (edited fields re-validated) / Reject
@@ -75,7 +77,8 @@ sequenceDiagram
 ```
 
 ### Prompt structure
-- **System prompt (static):** role, "use only the Local records for user-specific facts; say it is not recorded otherwise", no diagnosis/prescribing/dose changes, emergency instruction (911 Philippines), when to call tools, short answers. Static content lets llama.cpp reuse its KV cache across turns.
+- **System prompt (static):** role, "use only the Local records for user-specific facts; say it is not recorded otherwise", no diagnosis/prescribing/dose changes, emergency instruction (911 Philippines), which tool to call for which event (vaccine doses including flu shots → `propose_treatment_event`; visits, diagnoses, results, procedures, allergies, imaging, notes → `propose_medical_record`), short answers. Static content lets llama.cpp reuse its KV cache across turns.
+- **Prefill:** the system prompt plus the two tool definitions are about 700 tokens, which takes roughly 30–50 s to read on the test phone's CPU. When the user opens Chats or a conversation, the engine evaluates this static prefix in the background (a one-token completion, so the timing counters stay accurate). llama.rn keeps the longest common token prefix of the KV cache, so the question then only processes its own part (≈ 230 tokens instead of ≈ 1,050). The prefill is skipped when the cache already starts with the prefix (for example right after an answer), contains no personal data, and is cancelled by Stop or by locking.
 - **Latest user turn:** today's date, the retrieved local records (≤ 2,600 characters, member IDs masked to the last 4 characters), explicit "Not recorded in Doc Pawi: …" lines for requested topics with no data, then the question.
 - **History:** last 6 messages (≤ 2,400 characters), earlier record context is not repeated.
 - **Sampling:** temperature 0.7, top-k 20, top-p 0.8, min-p 0, presence penalty 0.5 (0 for JSON), `n_predict` 400 for chat. All parameters are passed on every call because llama.rn keeps omitted values from the previous call.
@@ -91,6 +94,9 @@ The read tools (search records, vaccinations, medications, treatments, doctors, 
 | `propose_treatment_event` | Vaccine dose, therapy session, treatment visit (completed or scheduled) | Zod: treatment type enum, status `completed`/`scheduled`, date direction checked against status | Pending proposal only |
 
 The model **cannot** read or write the database directly, access files, run code, or reach the network. Unknown tool names and malformed arguments are discarded and the reason is stored in the message metadata (shown as "An invalid AI suggestion was discarded"). At confirm time the (possibly edited) payload is validated again with the same Zod schemas as manual forms, inside one transaction.
+
+- **Facility check:** a facility in a suggestion is compared with the user's own message. If it is not there (on the test phone the model once copied "Quezon City Health Center" from the records when the user said "the city health center"), the field is listed as unverified and the card asks the user to check it until they change it.
+- **Series matching:** a confirmed vaccine/treatment event joins the user's existing series with the same title, but never a synthetic demo series.
 
 ## 5. Document flow
 
@@ -113,6 +119,7 @@ flowchart LR
 - Plaintext never persists: the document picker passes a `content://` URI that the native module encrypts directly; camera/gallery cache copies are deleted after encryption; PDFs are decrypted to a temporary cache file only while `PdfRenderer` reads them; image previews are decrypted to the cache and deleted when the preview closes.
 - Up to 5 PDF pages are processed; the rest are noted as skipped.
 - **Grounding:** each extracted value (date, facility, clinician, test names, values, units, reference ranges, medication names/strengths, vaccine names/dates) is normalized and searched in the OCR text. Values not found are shown as **Verify** on the review screen. Future or invalid dates are cleared.
+- **Summary consistency:** the free-text summary is checked clause by clause against the extracted results. A test the summary calls high, low, elevated, or abnormal that the document does not flag — or calls normal when it is flagged — produces a warning on the summary card and under the editable summary ("check before saving"). The check reruns as the user edits. On the test phone this caught "elevated creatinine" for an unflagged 88 µmol/L result.
 
 ## 6. Safety controls
 
@@ -122,7 +129,9 @@ flowchart LR
 | Dose-change questions | Deterministic detector adds a fixed note ("cannot advise changing … ask your prescriber or pharmacist") under the answer; system prompt forbids dose advice; medication forms say Doc Pawi never changes doses. |
 | Fabricated history | Records come only from retrieval; explicit "Not recorded" lines; system rule to say it is not recorded; sources shown under each answer. |
 | Invented records | Proposals only; Zod validation; explicit confirmation; provenance (`ai_chat`, `document`) stored on every saved row. |
+| Details the user never said | Facility in a chat suggestion checked against the user's message and marked for checking when absent. |
 | OCR/LLM extraction errors | Grounding check + "Verify" labels; editable review; original text available. |
+| Summary contradicting the document | Deterministic summary-vs-flags check with a visible warning before saving. |
 | Overconfident presentation | Every AI message shows "AI-generated on this phone by <model> · Not medical advice"; summaries are labelled AI-generated. |
 | Prompt injection inside documents | Extraction output is constrained to a JSON schema with no tool access; it can only produce a proposal the user reviews. |
 
@@ -138,4 +147,4 @@ flowchart LR
 
 ## 8. Measured performance
 
-Measured on the physical test device and recorded in [TESTING.md](TESTING.md#4-on-device-results) and [MODEL_DISCLOSURE.md](MODEL_DISCLOSURE.md#measured-performance). No GPU/NPU acceleration is claimed.
+Measured on the physical test device (Helio G85, release APK, airplane mode) and recorded in [TESTING.md](TESTING.md#4-on-device-results) and [MODEL_DISCLOSURE.md](MODEL_DISCLOSURE.md#5-measured-performance). No GPU/NPU acceleration is claimed. In short: model load 11–14 s; a chat answer after the prefill takes about 20–60 s (≈ 230 question tokens read at 10–16 tok/s, then 3–4.5 tok/s generation); analysing a one-page lab report takes about 4 minutes.

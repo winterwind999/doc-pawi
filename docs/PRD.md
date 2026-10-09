@@ -66,87 +66,87 @@ Each requirement has a stable ID. Acceptance criteria (AC) are written so they c
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-001 | **Google sign-in** on first launch to establish the account identity of a new local profile. | AC1: Tapping *Continue with Google* opens the Google account chooser. AC2: Cancel returns to the sign-in screen with a non-blocking message. AC3: No internet → an explanatory error with retry. AC4: When the build has no Google OAuth client configured, the button is disabled and the reason is shown. | Planned |
-| FR-002 | **Local-only profile** as a privacy-preserving alternative when Google is unavailable or declined. | AC1: The option is clearly labelled as local-only (no account recovery). AC2: It leads to the same PIN and profile steps. | Planned |
-| FR-003 | **Four-digit PIN** creation with confirmation. | AC1: Mismatched confirmation is rejected. AC2: The PIN is never stored in plain text. | Planned |
-| FR-004 | **PIN unlock with throttling** for returning users, fully offline. | AC1: Correct PIN unlocks without network. AC2: After 5 consecutive failures, unlock is blocked with an increasing delay that survives app restarts. | Planned |
-| FR-005 | **Idle auto-lock.** | AC1: Returning from background after the idle timeout requires the PIN. AC2: Locking closes the database and clears in-memory health data. | Planned |
-| FR-006 | **Optional biometric unlock** (after PIN setup). | AC1: Can be enabled only after entering the PIN. AC2: PIN always remains available as a fallback. | Planned |
-| FR-007 | **Profile setup:** display name, sex, date of birth, height and weight with units. | AC1: Invalid dates and implausible measurements are rejected with a descriptive message. AC2: Units are stored with values. | Planned |
-| FR-008 | **Privacy and medical-limitations disclosure** acknowledged during onboarding. | AC1: The user must acknowledge before storage is initialized. | Planned |
-| FR-009 | **Local storage initialization:** create a random database key in Android Keystore-backed storage and an encrypted SQLCipher database per profile. | AC1: The database file cannot be opened without the key. AC2: Failure shows a recoverable error. | Planned |
-| FR-010 | **Profile view and edit.** | AC1: Changes persist after restart. | Planned |
-| FR-011 | **Sign out** ends the session without deleting data. | AC1: Sign-out closes the database, clears the Google session, and returns to the welcome screen. AC2: The profile can be unlocked again offline with its PIN. | Planned |
-| FR-012 | **Profile isolation.** Each local profile has its own encrypted database, key, PIN, and document-encryption key. | AC1: Unlocking profile A never exposes profile B's data. | Planned |
+| FR-001 | **Google sign-in** on first launch to establish the account identity of a new local profile. | AC1: Tapping *Continue with Google* opens the Google account chooser. AC2: Cancel returns to the sign-in screen with a non-blocking message. AC3: No internet → an explanatory error with retry. AC4: When the build has no Google OAuth client configured, the button is disabled and the reason is shown. | Partial — no OAuth client in this build; the app shows the reason (AC4 verified); AC1–AC3 not verifiable |
+| FR-002 | **Local-only profile** as a privacy-preserving alternative when Google is unavailable or declined. | AC1: The option is clearly labelled as local-only (no account recovery). AC2: It leads to the same PIN and profile steps. | Verified |
+| FR-003 | **Four-digit PIN** creation with confirmation. | AC1: Mismatched confirmation is rejected. AC2: The PIN is never stored in plain text. | Verified |
+| FR-004 | **PIN unlock with throttling** for returning users, fully offline. | AC1: Correct PIN unlocks without network. AC2: After 5 consecutive failures, unlock is blocked with an increasing delay that survives app restarts. | Verified |
+| FR-005 | **Idle auto-lock.** | AC1: Returning from background after the idle timeout requires the PIN. AC2: Locking closes the database and clears in-memory health data. | Verified |
+| FR-006 | **Optional biometric unlock** (after PIN setup). | AC1: Can be enabled only after entering the PIN. AC2: PIN always remains available as a fallback. | Implemented — not verified on the device |
+| FR-007 | **Profile setup:** display name, sex, date of birth, height and weight with units. | AC1: Invalid dates and implausible measurements are rejected with a descriptive message. AC2: Units are stored with values. | Verified |
+| FR-008 | **Privacy and medical-limitations disclosure** acknowledged during onboarding. | AC1: The user must acknowledge before storage is initialized. | Verified |
+| FR-009 | **Local storage initialization:** create a random database key in Android Keystore-backed storage and an encrypted SQLCipher database per profile. | AC1: The database file cannot be opened without the key. AC2: Failure shows a recoverable error. | Verified |
+| FR-010 | **Profile view and edit.** | AC1: Changes persist after restart. | Implemented — not exercised on the device |
+| FR-011 | **Sign out** ends the session without deleting data. | AC1: Sign-out closes the database, clears the Google session, and returns to the welcome screen. AC2: The profile can be unlocked again offline with its PIN. | Implemented — not exercised on the device |
+| FR-012 | **Profile isolation.** Each local profile has its own encrypted database, key, PIN, and document-encryption key. | AC1: Unlocking profile A never exposes profile B's data. | Verified |
 
 ### 5.2 Home
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-013 | **Home dashboard** with local date, time-appropriate greeting, user name, mascot, contextual message, ongoing treatments, today's medication doses, upcoming treatment events, and an activity summary. | AC1: Every statement in the contextual message is derived from saved data (e.g., counts and dates); with no data, an onboarding-style empty state is shown. AC2: The mascot never implies a clinical assessment. | Planned |
+| FR-013 | **Home dashboard** with local date, time-appropriate greeting, user name, mascot, contextual message, ongoing treatments, today's medication doses, upcoming treatment events, and an activity summary. | AC1: Every statement in the contextual message is derived from saved data (e.g., counts and dates); with no data, an onboarding-style empty state is shown. AC2: The mascot never implies a clinical assessment. | Verified |
 
 ### 5.3 AI conversations and agent
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-014 | **Conversations:** create, list, open, rename-by-first-message, and delete; messages persist. | AC1: Messages are visible after restart. | Planned |
-| FR-015 | **Local LLM responses** with streaming and cancellation. | AC1: Tokens appear progressively. AC2: *Stop* ends generation and keeps the partial text marked "Stopped". AC3: No network request is made for inference. | Planned |
-| FR-016 | **Health-history retrieval** before answering user-specific questions. | AC1: Relevant local records are included in the model input. AC2: The UI shows which local records were used. | Planned |
-| FR-017 | **No fabrication.** | AC1: When no matching record exists, the reply states that it is not recorded in Doc Pawi. | Planned |
-| FR-018 | **AI-proposed record changes** (medical record, treatment/vaccination event) validated with Zod and shown as a proposal card. | AC1: Nothing is written to Records until *Confirm*. AC2: *Reject* creates nothing. AC3: Invalid model output is reported and discarded. | Planned |
-| FR-019 | **Safety guidance**: emergency red-flag terms show an emergency banner (call 911 in the Philippines / local emergency number); the assistant never prescribes or changes doses. | AC1: The banner appears independently of the model output. | Planned |
-| FR-020 | **Model state handling** in chat: not installed, loading, busy, error. | AC1: A missing model shows a link to model setup, not a fake answer. | Planned |
+| FR-014 | **Conversations:** create, list, open, rename-by-first-message, and delete; messages persist. | AC1: Messages are visible after restart. | Verified |
+| FR-015 | **Local LLM responses** with streaming and cancellation. | AC1: Tokens appear progressively. AC2: *Stop* ends generation and keeps the partial text marked "Stopped". AC3: No network request is made for inference. | Verified (Stop: unit-tested only) |
+| FR-016 | **Health-history retrieval** before answering user-specific questions. | AC1: Relevant local records are included in the model input. AC2: The UI shows which local records were used. | Verified |
+| FR-017 | **No fabrication.** | AC1: When no matching record exists, the reply states that it is not recorded in Doc Pawi. | Implemented — unit-tested; the "not recorded" question was not asked on the device |
+| FR-018 | **AI-proposed record changes** (medical record, treatment/vaccination event) validated with Zod and shown as a proposal card. | AC1: Nothing is written to Records until *Confirm*. AC2: *Reject* creates nothing. AC3: Invalid model output is reported and discarded. | Verified |
+| FR-019 | **Safety guidance**: emergency red-flag terms show an emergency banner (call 911 in the Philippines / local emergency number); the assistant never prescribes or changes doses. | AC1: The banner appears independently of the model output. | Verified |
+| FR-020 | **Model state handling** in chat: not installed, loading, busy, error. | AC1: A missing model shows a link to model setup, not a fake answer. | Implemented — loading/ready verified; not-installed path not tested on the device |
 
 ### 5.4 Documents
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-021 | **Import** a photo (camera or gallery), an image file, or a text-based/scanned PDF (first pages), or the bundled synthetic sample. | AC1: Supported types are listed; unsupported types are rejected with a message. | Planned |
-| FR-022 | **Encrypted storage** of imported files in app-private storage. | AC1: Stored files are AES-256-GCM encrypted with a per-profile Android Keystore key. | Planned |
-| FR-023 | **Local OCR** text extraction. | AC1: Works in airplane mode. AC2: OCR failure produces a clear error and the document remains available. | Planned |
-| FR-024 | **Local AI summary and candidate fields** (document type, date, facility, clinician, lab values, medications, vaccinations). | AC1: Output is schema-validated. AC2: Values not found in the OCR text are flagged "Not found in document text — verify". | Planned |
-| FR-025 | **Review, edit, reject, or confirm** the extraction. | AC1: Confirm creates a medical record linked to the document (provenance = document). AC2: Reject keeps the document but creates no record. | Planned |
+| FR-021 | **Import** a photo (camera or gallery), an image file, or a text-based/scanned PDF (first pages), or the bundled synthetic sample. | AC1: Supported types are listed; unsupported types are rejected with a message. | Partial — bundled sample verified; camera, gallery, and PDF not tested on the device |
+| FR-022 | **Encrypted storage** of imported files in app-private storage. | AC1: Stored files are AES-256-GCM encrypted with a per-profile Android Keystore key. | Verified |
+| FR-023 | **Local OCR** text extraction. | AC1: Works in airplane mode. AC2: OCR failure produces a clear error and the document remains available. | Verified (image; PDF not tested on the device) |
+| FR-024 | **Local AI summary and candidate fields** (document type, date, facility, clinician, lab values, medications, vaccinations). | AC1: Output is schema-validated. AC2: Values not found in the OCR text are flagged "Not found in document text — verify". | Verified |
+| FR-025 | **Review, edit, reject, or confirm** the extraction. | AC1: Confirm creates a medical record linked to the document (provenance = document). AC2: Reject keeps the document but creates no record. | Verified |
 
 ### 5.5 Records, vaccinations, and treatments
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-026 | **Medical records:** list, search, filter by category, view details with provenance, add, edit, delete with confirmation. | AC1: Source is shown as Manual, Document, AI-assisted (confirmed), or Demo. AC2: Deleting a record never deletes its source document. | Planned |
-| FR-027 | **Vaccination history** grouped by vaccine series with dose events. | AC1: Completed and scheduled doses are visually distinct. | Planned |
-| FR-028 | **Treatment episodes and events timeline** (ongoing, completed, stopped; scheduled/completed/missed/cancelled events). | AC1: Marking an event completed records the completion date. | Planned |
+| FR-026 | **Medical records:** list, search, filter by category, view details with provenance, add, edit, delete with confirmation. | AC1: Source is shown as Manual, Document, AI-assisted (confirmed), or Demo. AC2: Deleting a record never deletes its source document. | Verified (search/filter/edit unit-tested) |
+| FR-027 | **Vaccination history** grouped by vaccine series with dose events. | AC1: Completed and scheduled doses are visually distinct. | Verified |
+| FR-028 | **Treatment episodes and events timeline** (ongoing, completed, stopped; scheduled/completed/missed/cancelled events). | AC1: Marking an event completed records the completion date. | Verified (vaccination series; therapy timeline not viewed on the device) |
 
 ### 5.6 Medications
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-029 | **Medication definitions** with strength, form, instructions, prescriber, and daily schedule times. | AC1: Active and archived lists are separate. | Planned |
-| FR-030 | **Dose events** recorded as Taken or Skipped, separately from medication definitions. | AC1: One event per scheduled dose; Taken and Skipped are never conflated. AC2: Undo is possible on the same day. | Planned |
-| FR-031 | **Archive/remove medication** with confirmation; history is preserved on archive. | AC1: Archiving cancels reminders. | Planned |
-| FR-032 | **Local reminders** via Android notifications. | AC1: Permission is requested with an explanation; denial is handled. AC2: A notification never marks a dose as taken. AC3: Notification text hides medication names unless the user opts in. | Planned |
+| FR-029 | **Medication definitions** with strength, form, instructions, prescriber, and daily schedule times. | AC1: Active and archived lists are separate. | Verified |
+| FR-030 | **Dose events** recorded as Taken or Skipped, separately from medication definitions. | AC1: One event per scheduled dose; Taken and Skipped are never conflated. AC2: Undo is possible on the same day. | Verified |
+| FR-031 | **Archive/remove medication** with confirmation; history is preserved on archive. | AC1: Archiving cancels reminders. | Verified (delete; archive unit-tested) |
+| FR-032 | **Local reminders** via Android notifications. | AC1: Permission is requested with an explanation; denial is handled. AC2: A notification never marks a dose as taken. AC3: Notification text hides medication names unless the user opts in. | Verified |
 
 ### 5.7 Doctors and HMO
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-033 | **Doctors:** searchable list; add/edit/delete; specialty, organization, address, phones, emails, optional local photo, linked HMOs (user-reported). | AC1: HMO links are labelled "user-reported", never "verified". | Planned |
-| FR-034 | **HMO:** provider, plan, member ID, validity, coverage notes, hotline; linked saved facilities and doctors. | AC1: Works offline. AC2: No accreditation data is invented. | Planned |
-| FR-035 | **Optional map hand-off** ("Open in Maps") for a saved address. | AC1: Clearly labelled as leaving the app and requiring connectivity; only the address is shared. | Planned |
+| FR-033 | **Doctors:** searchable list; add/edit/delete; specialty, organization, address, phones, emails, optional local photo, linked HMOs (user-reported). | AC1: HMO links are labelled "user-reported", never "verified". | Verified (view and labels; add/edit not exercised on the device) |
+| FR-034 | **HMO:** provider, plan, member ID, validity, coverage notes, hotline; linked saved facilities and doctors. | AC1: Works offline. AC2: No accreditation data is invented. | Verified |
+| FR-035 | **Optional map hand-off** ("Open in Maps") for a saved address. | AC1: Clearly labelled as leaving the app and requiring connectivity; only the address is shared. | Verified |
 
 ### 5.8 Model lifecycle
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-036 | **Model download** to app-private storage with progress, cancel, free-space check, and SHA-256 verification against a pinned Hugging Face revision. | AC1: A corrupted or partial file is never marked ready. | Planned |
-| FR-037 | **Model status and lifecycle:** load, unload, delete, test prompt with timings, device information. | AC1: The app never reports an absent or failed model as ready. | Planned |
+| FR-036 | **Model download** to app-private storage with progress, cancel, free-space check, and SHA-256 verification against a pinned Hugging Face revision. | AC1: A corrupted or partial file is never marked ready. | Verified |
+| FR-037 | **Model status and lifecycle:** load, unload, delete, test prompt with timings, device information. | AC1: The app never reports an absent or failed model as ready. | Verified (unload/delete not exercised on the device) |
 
 ### 5.9 Settings, privacy, and data deletion
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-038 | **Settings:** model status and storage, privacy information, model disclosure, medical disclaimer, PIN change, biometric toggle, notification preferences, idle-lock timeout. | AC1: Each item opens a working screen. | Planned |
-| FR-039 | **Distinct destructive actions:** sign out, remove model, delete all conversations, delete health vault. | AC1: Each has its own confirmation explaining exactly what is removed. AC2: Deleting the vault removes the database, encrypted documents, and keys for that profile only. | Planned |
-| FR-040 | **Offline behaviour.** | AC1: All local features work in airplane mode. AC2: Online-only actions (Google sign-in, model download, map hand-off) explain why they are unavailable. | Planned |
-| FR-041 | **Synthetic demo data** loader for evaluation, clearly labelled, removable. | AC1: Demo rows are labelled "Demo" and can be removed without touching user-entered data. | Planned |
+| FR-038 | **Settings:** model status and storage, privacy information, model disclosure, medical disclaimer, PIN change, biometric toggle, notification preferences, idle-lock timeout. | AC1: Each item opens a working screen. | Verified (PIN change and biometric toggle not exercised on the device) |
+| FR-039 | **Distinct destructive actions:** sign out, remove model, delete all conversations, delete health vault. | AC1: Each has its own confirmation explaining exactly what is removed. AC2: Deleting the vault removes the database, encrypted documents, and keys for that profile only. | Verified (delete vault, remove demo data); other actions not exercised on the device |
+| FR-040 | **Offline behaviour.** | AC1: All local features work in airplane mode. AC2: Online-only actions (Google sign-in, model download, map hand-off) explain why they are unavailable. | Verified |
+| FR-041 | **Synthetic demo data** loader for evaluation, clearly labelled, removable. | AC1: Demo rows are labelled "Demo" and can be removed without touching user-entered data. | Verified |
 
 ## 6. Non-functional requirements
 

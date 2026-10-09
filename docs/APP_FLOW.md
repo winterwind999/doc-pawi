@@ -97,18 +97,20 @@ See the sequence diagram in [LOCAL_AI_ARCHITECTURE.md §3](LOCAL_AI_ARCHITECTURE
 |---|---|
 | Model not installed | Banner with "Set up AI model"; Send disabled |
 | Model installed, not loaded | First message loads it automatically ("Reading your local records and thinking on-device…") |
+| Chats or a conversation opened | The model reads its fixed instructions in the background (30–50 s on the test phone, no visible state); a message sent meanwhile waits for it and then starts sooner |
 | Model fails to load | Error banner with link to the model screen; the assistant message is saved with status *error* and an honest reason |
 | Another AI job running | Send disabled; input placeholder says a document is being analyzed |
 | Generating | Streaming text; Send becomes a red Stop button |
 | Stopped | Partial text kept, labelled "Stopped — response incomplete" |
 | No matching records | The answer says it is not recorded; "No personal records were needed" or the list of sources used is shown |
-| Model proposes a change | Dashed "AI suggestion — not saved" card: Confirm & save / Edit / Reject |
+| Model proposes a change | Dashed "AI suggestion — not saved" card: Confirm & save / Edit / Reject; a note when the suggested facility was not in the user's message |
+| Answer finished | Sources used, "AI-generated on this phone by …", and the speed line (or "Prompt was already in the model cache") |
 | Invalid model output | "An invalid AI suggestion was discarded (reason)"; nothing saved |
 | Emergency words | Red emergency banner with "Call 911" under the user's message |
 | Dose-change question | Fixed safety note under the answer |
 
 ## 5. Document processing
-See [LOCAL_AI_ARCHITECTURE.md §5](LOCAL_AI_ARCHITECTURE.md#5-document-flow). Screen states: *Reading text…* (OCR, seconds) → *Analyzing with local AI…* (elapsed time shown, Stop available, user may leave the screen) → *Ready for review* (editable fields, Found/Verify labels) → *Saved to records* or *Suggestion rejected*. Failures (no text found, PDF password-protected, model output invalid, interrupted) show a reason and a Retry or "Add record manually" path.
+See [LOCAL_AI_ARCHITECTURE.md §5](LOCAL_AI_ARCHITECTURE.md#5-document-flow). Screen states: *Reading text…* (OCR, seconds) → *Analyzing with local AI…* (elapsed time shown, Stop available, user may leave the screen) → *Ready for review* (editable fields, Found/Verify labels; a warning under the summary when it calls a result abnormal that the document does not flag, or normal when it does — the summary label then reads "check before saving") → *Saved to records* or *Suggestion rejected*. Failures (no text found, PDF password-protected, model output invalid, interrupted) show a reason and a Retry or "Add record manually" path.
 
 ## 6. Medication and treatment flows
 
@@ -121,7 +123,8 @@ See [LOCAL_AI_ARCHITECTURE.md §5](LOCAL_AI_ARCHITECTURE.md#5-document-flow). Sc
 | Delete permanently | Medication detail → Delete permanently → type DELETE | Medication, schedules, and history deleted |
 | Add a vaccination | Records → Vaccinations → Add vaccine series or dose → series (kind Vaccination) → Add event (dose, completed/scheduled, date) | Series + dose event in the timeline |
 | Review an ongoing treatment | Home → Ongoing treatments → treatment → timeline; Mark completed on a scheduled event | Completed date recorded (today or the scheduled date if past) |
-| Confirm an AI-proposed event | Chat: "I got my 2nd hepatitis B dose today" → proposal card → optionally pick the existing series → Confirm | Event added to the existing series or a new series is created |
+| Confirm an AI-proposed event | Chat: "I got my 2nd hepatitis B dose today" → proposal card → optionally pick the existing series → Confirm | Event added to the user's existing series or a new series is created (never to a synthetic demo series) |
+| Remove demo data | Settings → Remove demo data → confirm | Demo rows deleted; anything the user added to a demo series is moved to a series of their own first |
 
 Reminders: Android 13+ asks for notification permission (with an explanation in Meds/Settings). Denial is handled: a banner explains and offers app settings; doses can still be recorded manually. Notifications never mark a dose as taken.
 

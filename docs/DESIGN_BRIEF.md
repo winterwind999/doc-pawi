@@ -99,7 +99,8 @@ The **Style check** screen (Settings → Style check, route `/dev/style-check`) 
 | Doctors / HMO | Search/list, detail with call/email/map hand-off, user-reported HMO links/facilities |
 | Profile | Read view + edit form (units chosen by the user) |
 | Settings | AI model, security (PIN, biometrics, idle lock), reminders, demo data, privacy & info, account & data (distinct sign out / delete conversations / delete vault) |
-| AI model | Offline banner, model cards (size, quantization, license, source commit, SHA-256, status, actions), engine info, test prompt with tokens/s, device info |
+| AI model | Offline banner, model cards (size, quantization, license, source commit, SHA-256, status, actions), engine info (runtime, CPU library, context, KV cache, threads, load time), performance card (CPU threads, llama.cpp benchmark), test prompt with tokens/s, device info |
+| Chat answer | Answer text with light Markdown rendered (bold, bullets), sources used, "AI-generated on this phone" line, and a speed line ("Read N prompt tokens at X tok/s · wrote M tokens at Y tok/s") |
 
 ## 6. Accessibility
 
@@ -108,5 +109,5 @@ The **Style check** screen (Settings → Style check, route `/dev/style-check`) 
 - Text contrast meets WCAG AA (see palette); brand green behind white text is avoided in favor of `primary-600`.
 - Errors are inline, descriptive, and announced (`accessibilityLiveRegion`); emergencies use `accessibilityRole="alert"`.
 - Destructive actions always confirm; irreversible ones require typing DELETE.
-- Layouts are tested at 360 × 806 dp (720 × 1612 px, density 2.0); content scrolls and wraps; keyboard-avoiding containers on forms; the composer stays above the keyboard.
+- Layouts were checked on the 360 × 806 dp test phone (720 × 1612 px, density 2.0) in the release build; one clipped line (the welcome subtitle, a known Android measurement issue with centred semibold text) was found and fixed. Content scrolls and wraps; forms use keyboard-avoiding containers. On small screens the on-screen keyboard can cover a dialog's buttons until it is closed.
 - Medical values are large and selectable for copying.

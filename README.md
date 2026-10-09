@@ -24,22 +24,26 @@ Medical information is scattered across paper results, photos, and conversations
 
 ## Features
 
-Status legend: **Verified** = tested on the physical Android device · **Implemented** = complete, device verification pending · see [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) and [Testing](docs/TESTING.md).
+Status legend: **Verified** = tested on the physical Android device (HONOR JDY-LX2, release APK, airplane mode, 2026-10-10) · **Implemented** = complete, not yet verified on the device · see [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) and [Testing](docs/TESTING.md#4-on-device-results).
 
 | Feature | Status |
 |---|---|
-| Onboarding: local-only profile or Google sign-in, 4-digit PIN, profile (sex, DOB, height/weight with units), privacy disclosure, secure storage setup | Implemented (Google sign-in requires OAuth setup) |
-| PIN unlock offline with persistent throttling, idle auto-lock, optional biometrics, sign-out | Implemented |
-| Encrypted SQLCipher database per profile (Keystore-protected random key), AES-256-GCM document vault | Implemented |
-| Home: date, greeting, mascot, data-driven message, today's doses, ongoing treatments, upcoming events, activity | Implemented |
-| Chats: streaming local answers, stop, history, local-record retrieval with sources, AI proposals with confirm/edit/reject, emergency and dose-change safety notes, document attachments | Implemented |
-| Documents: camera/gallery/PDF/sample import, on-device OCR, AI summary + field extraction with "Verify" labels, review and confirm | Implemented |
-| Records, vaccinations, treatment timelines, provenance, search/filter, edit/delete | Implemented |
-| Meds: schedules, Taken/Skipped history, archive, local reminders (generic lock-screen text) | Implemented |
-| Doctors and HMO (user-reported links, facilities, map/call/email hand-off) | Implemented |
-| Model setup: pinned download with progress/pause/resume, SHA-256 verification, load/unload, test prompt with timings, device info | Implemented |
-| Synthetic demo data for evaluation | Implemented |
-| Unit and database tests (57 passing) | Verified (Node) |
+| Onboarding: local-only profile, 4-digit PIN, profile (sex, DOB, height/weight with units), privacy disclosure, secure storage setup, hand-off to AI model setup | Verified |
+| Google sign-in | Implemented — requires an OAuth client; not verified |
+| PIN unlock offline with persistent throttling, idle auto-lock, sign-out, profile switching | Verified |
+| Biometric unlock (optional) | Implemented — not verified on the device |
+| Encrypted SQLCipher database per profile (Keystore-protected random key), AES-256-GCM document vault | Verified (SQLCipher 4.7.0 reported by the app; documents stored in the encrypted vault) |
+| Home: date, greeting, mascot, data-driven message, today's doses, ongoing treatments, upcoming events | Verified |
+| Chats: streaming local answers, history, local-record retrieval with sources, AI proposals with confirm/edit/reject, emergency and dose-change safety notes, per-answer speed | Verified |
+| Chat: stop button, attaching a processed document to a question | Implemented — not verified on the device |
+| Documents: sample import, on-device OCR, AI summary + field extraction with "Verify" labels, summary consistency warning, review and confirm | Verified (bundled sample image) |
+| Documents: camera, gallery, and PDF import | Implemented — camera permission-denied path verified; capture and PDF not verified |
+| Records, vaccinations, treatment timelines, provenance labels | Verified · search/filter/edit unit-tested |
+| Meds: schedules, Taken/Skipped history with Undo, delete, local reminders (generic lock-screen text) | Verified · archiving unit-tested |
+| Doctors and HMO (user-reported links, facilities, map/call/email hand-off) | Verified |
+| Model setup: pinned download with progress/pause/resume, SHA-256 verification, load/unload, CPU-thread setting, test prompt, llama.cpp benchmark, device info | Verified (Qwen3 1.7B; the 0.6B model was not tested) |
+| Synthetic demo data for evaluation (load and remove, keeping user entries) | Verified |
+| Unit and database tests (74 passing) | Verified (Node) |
 
 ## Technology
 
@@ -107,8 +111,8 @@ Models are **not** in the repository. Install from the app: Settings → *Manage
 5. Records → Import document → *Try the synthetic sample report* → review → Confirm.
 
 ## Known limitations
-- AI is slow on mid-range phones (tens of seconds per answer; minutes per document) — see measured speeds in the [Model Disclosure](docs/MODEL_DISCLOSURE.md#5-measured-performance).
-- Small local models can be wrong; answers show sources and suggestions need confirmation.
+- AI is slow on mid-range phones. On the test phone (Helio G85): opening Chats prepares the model for 30–50 s in the background, an answer then takes about 20–60 s, and analysing a one-page lab report about 4 minutes — see measured speeds in the [Model Disclosure](docs/MODEL_DISCLOSURE.md#5-measured-performance).
+- Small local models can be wrong; answers show sources and suggestions need confirmation. Errors seen on the test phone (a summary calling an unflagged result "elevated", a clinic name copied from records) are now flagged by deterministic checks, but not every possible error can be caught.
 - Google sign-in needs OAuth configuration and uses the legacy Google Sign-In SDK.
 - OpenMed clinical NER was investigated but not integrated ([why](docs/TECHNICAL_REQUIREMENTS.md#4-compatibility-decisions-and-trade-offs)).
 - OCR: printed Latin script only; PDFs limited to 5 pages. No dark theme. Android only.

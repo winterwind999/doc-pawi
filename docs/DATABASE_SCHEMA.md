@@ -184,7 +184,7 @@ Per-profile preferences as JSON values: `idleLockMinutes`, `remindersEnabled`, `
 | Create facility from an HMO | Facility + link |
 | Delete document | Row deletion (cascades/SET NULL) — file deleted after commit |
 | Delete all conversations | Single `DELETE` (cascades) |
-| Load/remove demo data | All demo rows in one transaction |
+| Load/remove demo data | All demo rows in one transaction; on removal, non-demo `treatment_events` on a demo treatment are first moved to a new `manual` treatment with the same title and kind (they would otherwise cascade-delete) |
 | Migrations | Each migration + its `schema_migrations` row |
 
 Writes are serialized by an in-app lock (`createDb`) so transactions never interleave on the single connection.

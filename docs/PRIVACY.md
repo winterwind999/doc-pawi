@@ -30,7 +30,7 @@ Android Auto Backup is disabled (`android:allowBackup="false"`), and SecureStore
 1. On profile creation, Doc Pawi generates a random 256-bit database key and stores it in SecureStore.
 2. Unlocking with the PIN (or biometrics, if enabled) lets the app read that key and open the SQLCipher database. **The 4-digit PIN is an access gate, not the encryption key** — 10,000 combinations would be too weak as a key.
 3. Failed PIN attempts are throttled (5 free attempts, then 30 s, 1, 5, 15, 30, 60 min), and the throttle state survives restarts.
-4. Locking (manual, background timeout, or foreground inactivity) closes the database, stops generation, clears the model's KV cache, and removes decrypted preview files.
+4. Locking (manual, background timeout, or foreground inactivity) closes the database, stops generation, clears the model's KV cache, and removes decrypted preview files. The only prompt prepared ahead of time (when Chats opens) is the fixed instructions and tool definitions, which contain no personal data.
 5. Each profile has its own database, key, PIN, and document key, so one profile cannot read another's data.
 6. Deleting the health vault removes the database files, the vault folder, the Keystore document key (making any leftover ciphertext unrecoverable), all SecureStore entries, reminders, and the registry entry.
 
