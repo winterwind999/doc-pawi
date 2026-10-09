@@ -47,7 +47,6 @@ export default function ModelDisclosureScreen() {
             'Small on-device models make mistakes: they can misread values, mix up dates, or state incorrect general information. Always check against the original document and ask a clinician.',
             'Responses are slower than cloud AI. On the tested mid-range phone, answers take tens of seconds to a few minutes (see the measured speeds on the AI model screen).',
             'The model does not diagnose, prescribe, or adjust doses, and it cannot assess emergencies.',
-            'OpenMed clinical models were evaluated but are not included in this version (see the project documentation for the reasons).',
           ],
         },
       ]}

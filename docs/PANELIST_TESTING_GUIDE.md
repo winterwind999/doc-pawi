@@ -125,6 +125,5 @@ Release APK on the HONOR JDY-LX2 test phone, 2026-10-10, airplane mode on and Wi
 - The small on-device model can make mistakes; that is why answers show their sources and suggestions require confirmation.
 - Google sign-in is disabled in builds without an OAuth client; the local-only profile is the supported evaluation path.
 - OCR reads printed Latin-script text only (no handwriting). PDFs: first 5 pages.
-- OpenMed clinical models are not included.
 - Reminders may be delayed by a few minutes unless Android's "Alarms & reminders" access is granted (on the test phone a reminder arrived about 80 s after its time).
 - Removing demo data keeps anything you added yourself, including doses you added to a demo vaccine series.

@@ -114,7 +114,6 @@ Models are **not** in the repository. Install from the app: Settings → *Manage
 - AI is slow on mid-range phones. On the test phone (Helio G85): opening Chats prepares the model for 30–50 s in the background, an answer then takes about 20–60 s, and analysing a one-page lab report about 4 minutes — see measured speeds in the [Model Disclosure](docs/MODEL_DISCLOSURE.md#5-measured-performance).
 - Small local models can be wrong; answers show sources and suggestions need confirmation. Errors seen on the test phone (a summary calling an unflagged result "elevated", a clinic name copied from records) are now flagged by deterministic checks, but not every possible error can be caught.
 - Google sign-in needs OAuth configuration and uses the legacy Google Sign-In SDK.
-- OpenMed clinical NER was investigated but not integrated ([why](docs/TECHNICAL_REQUIREMENTS.md#4-compatibility-decisions-and-trade-offs)).
 - OCR: printed Latin script only; PDFs limited to 5 pages. No dark theme. Android only.
 
 ## Documentation

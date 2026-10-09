@@ -70,7 +70,6 @@ No calendar estimates are given; tasks are ordered by dependency.
 | P6-002 | Biometric unlock | P3-004 | Settings + unlock | Enable requires biometric confirmation; PIN fallback | Implemented | Not verified on the device |
 | P6-003 | Maps/phone/email hand-off | P5-005 | `MapHandoffButton` | Confirmation before maps; only address shared | Verified (maps dialog) | The maps app itself was not opened (offline) |
 | P6-004 | Google sign-in | P5-001 | `auth/google.ts` | Works when OAuth client configured | Implemented | **Blocked for verification:** requires the owner's Google Cloud OAuth client (package + SHA-1) |
-| P6-005 | OpenMed clinical NER | — | — | — | Blocked | Not integrated (see TECHNICAL_REQUIREMENTS §4) |
 
 ## Phase 7 — Testing, documentation, demo preparation
 

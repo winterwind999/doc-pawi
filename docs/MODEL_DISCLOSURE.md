@@ -89,4 +89,3 @@ Why generation in chat is slower than the 128-token benchmark: chat generates ab
 - **Language:** best in English; OCR supports Latin script only (no handwriting).
 - **Tool calling:** at most one proposal per response is reliably produced by this runtime version.
 - **Knowledge cut-off:** the model's general medical knowledge is static and may be outdated.
-- **OpenMed:** clinical NER models from OpenMed were evaluated but not integrated (see [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md#4-compatibility-decisions-and-trade-offs)).

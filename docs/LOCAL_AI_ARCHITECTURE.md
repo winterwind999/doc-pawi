@@ -18,7 +18,6 @@
 
 \* ML Kit may send anonymous usage metrics to Google when online; images and text are processed on-device and are not sent ([PRIVACY.md](PRIVACY.md)).
 
-**OpenMed:** investigated and **not integrated** in this build (16 KB page-size incompatibility of its DJL tokenizer native library, minSdk 26, failing JitPack release build, downloader bug, English-only single-entity NER models of ~70 MB each, and no upstream on-device testing). See [TECHNICAL_REQUIREMENTS.md §4](TECHNICAL_REQUIREMENTS.md#4-compatibility-decisions-and-trade-offs). No OpenMed functionality is claimed.
 
 ## 2. Model lifecycle
 

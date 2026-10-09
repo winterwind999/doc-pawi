@@ -175,7 +175,7 @@ Genuine on-device inference · local health-context retrieval · local OCR + AI 
 Medication reminders · treatment and vaccination timelines · model management UI · doctor and HMO management · robust settings · biometric unlock · synthetic demo data.
 
 ### Could have
-More advanced retrieval (embeddings) · additional document formats · higher-accuracy OCR models · charts of lab values over time · in-app maps · OpenMed clinical NER (see [LOCAL_AI_ARCHITECTURE.md](LOCAL_AI_ARCHITECTURE.md) for the investigation result) · dark theme.
+More advanced retrieval (embeddings) · additional document formats · higher-accuracy OCR models · charts of lab values over time · in-app maps · dark theme.
 
 ### Out of scope
 Cloud-based medical reasoning · autonomous diagnosis · autonomous prescription or dose changes · invented HMO accreditation data · cloud sync or backup of health data · claims of clinical reliability · iOS release (code is cross-platform where practical, but only Android is built and tested).
