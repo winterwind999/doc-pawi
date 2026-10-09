@@ -25,7 +25,9 @@ export default function WelcomeScreen() {
           <Text accessibilityRole="header" className="text-center text-3xl font-bold text-ink">
             Doc Pawi
           </Text>
-          <Text className="text-center text-base font-semibold text-primary-700">AI Medical Assistant</Text>
+          {/* self-stretch: inside items-center, Android measured this semibold line slightly too narrow and
+              clipped "Assistant" (seen on a Honor phone); the full width leaves room for it. */}
+          <Text className="self-stretch text-center text-base font-semibold text-primary-700">AI Medical Assistant</Text>
           <Text className="text-center text-base leading-6 text-ink-muted">
             Your private health companion. Records, documents, and the AI assistant stay on this phone — and keep
             working without internet.

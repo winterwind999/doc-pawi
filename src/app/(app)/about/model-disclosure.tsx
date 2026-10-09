@@ -21,9 +21,9 @@ export default function ModelDisclosureScreen() {
         {
           heading: 'Inference runtime',
           body: [
-            'llama.cpp build b10256 (commit 6c8dcaa) through the llama.rn 0.12.9 React Native library (MIT licenses). Inference runs on the phone’s CPU; GPU and NPU acceleration are not used.',
+            'llama.cpp build b10256 (commit 6c8dcaa) through the llama.rn 0.12.9 React Native library (MIT licenses). Inference runs on the phone’s CPU; GPU and NPU acceleration are not used. The attention cache (KV cache) is stored in 8-bit (q8_0) form to save memory.',
             info
-              ? `Currently loaded: ${info.modelDescription}, native library ${info.nativeLibrary ?? 'unknown'}, ${info.contextTokens}-token context.`
+              ? `Currently loaded: ${info.modelDescription}, native library ${info.nativeLibrary ?? 'unknown'}, ${info.contextTokens}-token context, ${info.kvCacheType} KV cache, ${info.threads ? `${info.threads} CPU threads` : 'default CPU threads (up to 4)'}.`
               : 'No model is loaded right now.',
           ],
         },
