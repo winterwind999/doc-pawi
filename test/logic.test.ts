@@ -1,4 +1,5 @@
 import { checkGrounding, extractionSchema, extractionToProposal, isGrounded, normalizeForMatch, parseExtraction } from '@/lib/ai/extraction';
+import { describeTimings, formatModelText } from '@/lib/ai/format-text';
 import { asksAboutDoseChange, assessMessage } from '@/lib/ai/safety';
 import { addDays, ageOn, formatTimeOfDay, greetingFor, isValidIsoDate, relativeDay } from '@/lib/dates';
 import type { ActivitySummary } from '@/lib/db/repositories/stats';
@@ -149,5 +150,37 @@ describe('home message', () => {
       today: '2026-10-09',
     });
     expect(msg).toBe('Next recorded event: “Dose 3” in 14 days (Oct 23, 2026). 1 AI suggestion is waiting for your review.');
+  });
+});
+
+describe('model text formatting', () => {
+  it('turns light Markdown into bold segments and bullets', () => {
+    expect(formatModelText('You take:\n- **Metformin (demo)**: 500 mg\n### Notes\n2 * 3 stays')).toEqual([
+      [{ text: 'You take:', bold: false }],
+      [
+        { text: '• ', bold: false },
+        { text: 'Metformin (demo)', bold: true },
+        { text: ': 500 mg', bold: false },
+      ],
+      [{ text: 'Notes', bold: true }],
+      [{ text: '2 * 3 stays', bold: false }],
+    ]);
+  });
+
+  it('keeps an unclosed bold marker readable while streaming', () => {
+    expect(formatModelText('1. **Metfor')).toEqual([[{ text: '1. ', bold: false }, { text: 'Metfor', bold: true }]]);
+  });
+});
+describe('completion timing summary', () => {
+  const base = { promptTokens: 234, promptMs: 15100, promptTokensPerSecond: 15.5, generatedTokens: 97, generationMs: 32000, generatedTokensPerSecond: 3.03 };
+
+  it('reports prompt and generation speed', () => {
+    expect(describeTimings(base)).toBe('Read 234 prompt tokens at 15.5 tok/s · wrote 97 tokens at 3.0 tok/s');
+  });
+
+  it('says so when the whole prompt came from the KV cache', () => {
+    expect(describeTimings({ ...base, promptTokens: 1, promptMs: 0, promptTokensPerSecond: 0 })).toBe(
+      'Prompt was already in the model cache · wrote 97 tokens at 3.0 tok/s',
+    );
   });
 });

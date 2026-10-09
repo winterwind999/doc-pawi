@@ -3,6 +3,7 @@ import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native'
 
 import { Banner } from '@/components/ui/Banner';
 import { Icon } from '@/components/ui/Icon';
+import { describeTimings, formatModelText } from '@/lib/ai/format-text';
 import type { ModelRunMetadata } from '@/lib/ai/llm-types';
 import { getModelSpec } from '@/lib/ai/model-catalog';
 import { assessMessage, DOSE_CHANGE_NOTE, EMERGENCY_MESSAGE, EMERGENCY_NUMBER } from '@/lib/ai/safety';
@@ -53,6 +54,28 @@ export function UserBubble({ message, attachmentName }: { message: MessageRow; a
   );
 }
 
+function ModelText({ text }: { text: string }) {
+  const lines = formatModelText(text);
+  return (
+    <Text selectable className="text-base leading-6 text-ink">
+      {lines.map((segments, i) => (
+        <Text key={i}>
+          {segments.map((s, j) =>
+            s.bold ? (
+              <Text key={j} className="font-semibold">
+                {s.text}
+              </Text>
+            ) : (
+              s.text
+            ),
+          )}
+          {i < lines.length - 1 ? '\n' : null}
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
 function Sources({ meta }: { meta: ModelRunMetadata }) {
   const [open, setOpen] = useState(false);
   const sources = meta.sources ?? [];
@@ -99,9 +122,7 @@ export function AssistantBubble({ message }: { message: MessageRow }) {
         }`}
       >
         {text ? (
-          <Text selectable className="text-base leading-6 text-ink">
-            {text}
-          </Text>
+          <ModelText text={text} />
         ) : message.status === 'generating' ? (
           <View className="flex-row items-center gap-2" accessibilityLiveRegion="polite">
             <ActivityIndicator size="small" color={colors.primary} />
@@ -120,10 +141,14 @@ export function AssistantBubble({ message }: { message: MessageRow }) {
         <View className="max-w-[92%] gap-0.5 px-1">
           <Sources meta={meta} />
           <Text className="text-[11px] leading-4 text-ink-soft">
-            AI-generated on this phone by {spec?.displayName ?? meta.modelId}
-            {timings ? ` · ${timings.generatedTokensPerSecond.toFixed(1)} tok/s` : ''} · {formatTimestamp(message.created_at)} · Not
+            AI-generated on this phone by {spec?.displayName ?? meta.modelId} · {formatTimestamp(message.created_at)} · Not
             medical advice
           </Text>
+          {timings ? (
+            <Text className="text-[11px] leading-4 text-ink-soft">
+              {describeTimings(timings)}
+            </Text>
+          ) : null}
           {meta.toolCalls?.filter((t) => !t.ok).map((t) => (
             <Text key={t.name + t.error} className="text-[11px] text-coral-600">
               An invalid AI suggestion was discarded ({t.error}).
