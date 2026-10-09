@@ -13,7 +13,9 @@ export function StatusBadge({ label, tone = 'neutral', icon }: { label: string; 
       className={`flex-row items-center gap-1 self-start rounded-full border px-2.5 py-1 ${t.bg} ${t.border}`}
     >
       {icon ? <Icon name={icon} size={14} color={t.icon} /> : null}
-      <Text className={`text-xs font-semibold ${t.text}`}>{label}</Text>
+      <Text numberOfLines={1} className={`shrink text-xs font-semibold ${t.text}`}>
+        {label}
+      </Text>
     </View>
   );
 }

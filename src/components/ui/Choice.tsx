@@ -38,7 +38,9 @@ export function ChoiceChips<T extends string>({
                 selected ? 'border-primary-600 bg-primary-600' : 'border-line-strong bg-surface active:bg-surface-sunken'
               }`}
             >
-              <Text className={`text-sm font-semibold ${selected ? 'text-white' : 'text-ink'}`}>{o.label}</Text>
+              <Text numberOfLines={1} className={`text-sm font-semibold ${selected ? 'text-white' : 'text-ink'}`}>
+                {o.label}
+              </Text>
             </Pressable>
           );
         })}
@@ -73,7 +75,9 @@ export function SegmentedTabs<T extends string>({
               selected ? 'bg-ink' : 'border border-line bg-surface active:bg-surface-sunken'
             }`}
           >
-            <Text className={`text-sm font-semibold ${selected ? 'text-white' : 'text-ink'}`}>{o.label}</Text>
+            <Text numberOfLines={1} className={`text-sm font-semibold ${selected ? 'text-white' : 'text-ink'}`}>
+              {o.label}
+            </Text>
           </Pressable>
         );
       })}

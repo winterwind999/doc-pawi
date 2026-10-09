@@ -64,13 +64,17 @@ export function Button({
         inactive ? 'opacity-50' : ''
       } ${className}`}
     >
-      <View className="flex-row items-center justify-center gap-2">
+      <View className="max-w-full flex-row items-center justify-center gap-2">
         {loading ? (
           <ActivityIndicator size="small" color={v.spinner} />
         ) : icon ? (
           <Icon name={icon} size={s.icon} color={v.icon} />
         ) : null}
-        <Text className={`${s.text} font-semibold ${v.text}`}>{label}</Text>
+        {/* Single line: on some Android phones (seen on a Honor) a shrink-wrapped semibold label is
+            measured a sub-pixel too narrow and its last word wraps out of view ("+ Add"). */}
+        <Text numberOfLines={1} className={`shrink ${s.text} font-semibold ${v.text}`}>
+          {label}
+        </Text>
       </View>
     </Pressable>
   );

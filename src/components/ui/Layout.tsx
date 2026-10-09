@@ -61,7 +61,7 @@ export function SectionHeader({
 }) {
   return (
     <View className={`flex-row items-center justify-between ${className}`}>
-      <Text accessibilityRole="header" className="text-base font-bold uppercase tracking-wide text-ink-muted">
+      <Text accessibilityRole="header" numberOfLines={1} className="shrink text-base font-bold uppercase tracking-wide text-ink-muted">
         {title}
       </Text>
       {actionLabel && onAction ? (
@@ -72,7 +72,9 @@ export function SectionHeader({
           hitSlop={8}
           className="min-h-[44px] justify-center px-1"
         >
-          <Text className="text-sm font-semibold text-primary-700">{actionLabel}</Text>
+          <Text numberOfLines={1} className="text-sm font-semibold text-primary-700">
+            {actionLabel}
+          </Text>
         </Pressable>
       ) : null}
     </View>
