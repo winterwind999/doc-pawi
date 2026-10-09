@@ -52,6 +52,15 @@ export default function AppLayout() {
     if (url === '/meds') router.navigate('/meds');
   }, [response]);
 
+  const postUnlockRoute = useSession((s) => s.postUnlockRoute);
+  useEffect(() => {
+    if (!db || !postUnlockRoute) return;
+    useSession.setState({ postUnlockRoute: null });
+    // Defer one frame so the tabs are mounted before pushing on top of them.
+    const t = setTimeout(() => router.push(postUnlockRoute as never), 0);
+    return () => clearTimeout(t);
+  }, [db, postUnlockRoute]);
+
   if (!db) return null;
 
   return (

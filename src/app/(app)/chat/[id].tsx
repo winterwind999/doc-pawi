@@ -76,17 +76,14 @@ export default function ChatScreen() {
     const stream = useChatStream.getState();
     stream.start(id);
     try {
-      let prompt = question;
-      if (attached) {
-        const doc = data.data?.documents.find((d) => d.id === attached.id);
-        const excerpt = doc?.summary ?? doc?.extracted_text?.slice(0, 1200) ?? '';
-        prompt = `${question}\n\n[Attached document "${attached.name}"${excerpt ? `: ${excerpt}` : ' (not processed yet)'}]`;
-      }
+      const doc = attached ? data.data?.documents.find((d) => d.id === attached.id) : null;
+      const docText = doc ? [doc.summary ? `Summary: ${doc.summary}` : '', doc.extracted_text ?? ''].filter(Boolean).join('\n') : '';
       await sendChatMessage({
         db,
         profileId,
         conversationId: id,
-        text: prompt,
+        text: question,
+        attachment: attached && docText ? { documentId: attached.id, name: attached.name, text: docText } : null,
         complete: (request) => useModelStore.getState().complete('chat', request),
         model: currentModelMetadata(),
         onAssistantStarted: (messageId) => useChatStream.getState().attach(messageId),

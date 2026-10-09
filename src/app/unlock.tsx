@@ -1,5 +1,5 @@
 import * as LocalAuthentication from 'expo-local-authentication';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -30,6 +30,16 @@ export default function UnlockScreen() {
       setBioAvailable(ok);
     })();
   }, [profileId]);
+
+  const autoPrompted = useRef(false);
+  useEffect(() => {
+    if (!biometricEnabled || !bioAvailable || autoPrompted.current) return;
+    autoPrompted.current = true;
+    void (async () => {
+      const result = await useSession.getState().unlockWithBiometrics();
+      if (!result.ok && result.message) setMessage({ tone: 'danger', text: result.message });
+    })();
+  }, [biometricEnabled, bioAvailable]);
 
   useEffect(() => {
     if (!lockedUntil || lockedUntil <= Date.now()) return;

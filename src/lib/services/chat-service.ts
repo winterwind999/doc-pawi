@@ -37,20 +37,32 @@ export async function sendChatMessage(args: {
   text: string;
   complete: CompleteFn;
   model: Pick<ModelRunMetadata, 'modelId' | 'modelFile' | 'engine'>;
+  /** A processed document the user attached; its text is given to the model, not shown in the bubble. */
+  attachment?: { documentId: string; name: string; text: string } | null;
   onAssistantStarted?: (messageId: string) => void;
   onText?: (text: string) => void;
 }) {
-  const { db, profileId, conversationId, text } = args;
+  const { db, profileId, conversationId, text, attachment } = args;
   const question = text.trim();
   if (!question) return null;
 
   const history = await listMessages(db, conversationId);
-  await insertMessage(db, { conversationId, role: 'user', content: question });
+  await insertMessage(db, {
+    conversationId,
+    role: 'user',
+    content: question,
+    attachmentDocumentId: attachment?.documentId ?? null,
+  });
   if (history.length === 0) await renameConversation(db, conversationId, titleFromMessage(question));
 
   const safety = assessMessage(question);
   const doseChangeQuestion = asksAboutDoseChange(question);
   const retrieval = await retrieveHealthContext(db, profileId, question);
+  if (attachment) {
+    const excerpt = attachment.text.length > 1500 ? `${attachment.text.slice(0, 1500)}…` : attachment.text;
+    retrieval.contextText = `Attached document "${attachment.name}" (on-device OCR text or summary; may contain recognition errors):\n${excerpt}\n\n${retrieval.contextText}`;
+    retrieval.sources.unshift({ type: 'document', id: attachment.documentId, label: attachment.name });
+  }
 
   const baseMeta: ModelRunMetadata = {
     ...args.model,

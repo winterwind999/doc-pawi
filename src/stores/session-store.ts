@@ -57,6 +57,8 @@ interface SessionStore {
   biometricEnabled: boolean;
   dataVersion: number;
   bootError: string | null;
+  /** Route to open once the unlocked app has mounted (e.g. model setup after onboarding). */
+  postUnlockRoute: string | null;
 
   boot(): Promise<void>;
   chooseProfile(profileId: string): Promise<void>;
@@ -143,6 +145,7 @@ export const useSession = create<SessionStore>()((set, get) => {
     biometricEnabled: false,
     dataVersion: 0,
     bootError: null,
+    postUnlockRoute: null,
 
     async boot() {
       try {

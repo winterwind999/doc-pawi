@@ -78,7 +78,7 @@ export function extractKeywords(question: string): string[] {
 }
 
 export interface RetrievedSource {
-  type: 'profile' | 'record' | 'treatment' | 'medication' | 'doctor' | 'hmo';
+  type: 'profile' | 'record' | 'treatment' | 'medication' | 'doctor' | 'hmo' | 'document';
   id: string;
   label: string;
 }

@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
@@ -41,10 +40,12 @@ export default function SetupStep() {
       return;
     }
     try {
+      // The app layout opens this route once the protected (app) group has mounted.
+      useSession.setState({ postUnlockRoute: '/model?onboarding=1' });
       await useSession.getState().createProfile(draft, input.data);
       useOnboardingStore.getState().reset();
-      router.replace({ pathname: '/model', params: { onboarding: '1' } });
     } catch (e) {
+      useSession.setState({ postUnlockRoute: null });
       setState('error');
       setError(`Secure storage could not be set up: ${(e as Error).message}. Nothing was saved; you can try again.`);
     }

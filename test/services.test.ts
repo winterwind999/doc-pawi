@@ -1,5 +1,6 @@
 import type { CompletionRequest, CompletionResult } from '@/lib/ai/llm-types';
 import { listMessages, createConversation } from '@/lib/db/repositories/conversations';
+import { insertDocument } from '@/lib/db/repositories/documents';
 import { getActivitySummary } from '@/lib/db/repositories/stats';
 import { listProposalsForConversation } from '@/lib/db/repositories/proposals';
 import { listRecords } from '@/lib/db/repositories/records';
@@ -87,6 +88,37 @@ describe('chat orchestration', () => {
     expect(await listProposalsForConversation(db, c.id)).toHaveLength(0);
     const assistant = (await listMessages(db, c.id))[1];
     expect(JSON.parse(assistant.model_metadata!).toolCalls[0]).toMatchObject({ ok: false });
+  });
+
+  it('gives an attached document to the model without putting it in the visible message', async () => {
+    const db = await openTestDbWithProfile();
+    await insertDocument(db, {
+      id: 'doc-1',
+      profileId: PROFILE_ID,
+      displayName: 'lab.png',
+      mimeType: 'image/png',
+      privateFilePath: '/vault/doc-1.dpv',
+      fileSize: 10,
+      sha256: 'x',
+    });
+    const c = await createConversation(db, PROFILE_ID);
+    let prompt = '';
+    await sendChatMessage({
+      db,
+      profileId: PROFILE_ID,
+      conversationId: c.id,
+      text: 'Summarize this report',
+      model: MODEL,
+      attachment: { documentId: 'doc-1', name: 'lab.png', text: 'WBC count 11.8 HIGH' },
+      complete: scripted({ text: 'It shows a WBC count marked high.' }, (r) => {
+        prompt = r.messages[r.messages.length - 1].content;
+      }),
+    });
+    expect(prompt).toContain('Attached document "lab.png"');
+    expect(prompt).toContain('WBC count 11.8 HIGH');
+    const [user, assistant] = await listMessages(db, c.id);
+    expect(user.content).toBe('Summarize this report');
+    expect(JSON.parse(assistant.model_metadata!).sources[0]).toMatchObject({ type: 'document', label: 'lab.png' });
   });
 
   it('keeps partial text when stopped and reports model errors honestly', async () => {
