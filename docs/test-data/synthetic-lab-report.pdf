@@ -1,0 +1,63 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+7 0 obj
+<< /Length 1739 >>
+stream
+BT
+/F2 15 Tf 1 0 0 1 50 790 Tm (BAYANIHAN DIAGNOSTIC LABORATORY \(FICTIONAL\)) Tj
+/F1 9 Tf 1 0 0 1 50 768 Tm (45 Sampaguita Avenue, Quezon City  |  Tel. \(02\) 8555 0100) Tj
+/F2 11 Tf 1 0 0 1 50 751 Tm (SYNTHETIC TEST DOCUMENT - NOT A REAL PATIENT OR FACILITY) Tj
+/F2 12 Tf 1 0 0 1 50 724 Tm (LABORATORY REPORT) Tj
+/F1 11 Tf 1 0 0 1 50 704 Tm (Patient: Juan Dela Cruz          Sex: Male          Age: 34) Tj
+/F1 11 Tf 1 0 0 1 50 687 Tm (Date collected: 2026-09-15       Date reported: 2026-09-16) Tj
+/F1 11 Tf 1 0 0 1 50 670 Tm (Requesting physician: Dr. Maria Santos) Tj
+/F2 12 Tf 1 0 0 1 50 643 Tm (COMPLETE BLOOD COUNT) Tj
+/F3 10 Tf 1 0 0 1 50 623 Tm (Test                 Result   Unit        Reference range   Flag) Tj
+/F3 10 Tf 1 0 0 1 50 606 Tm (Hemoglobin           14.1     g/dL        13.5 - 17.5) Tj
+/F3 10 Tf 1 0 0 1 50 589 Tm (Hematocrit           42.0     %           41.0 - 53.0) Tj
+/F3 10 Tf 1 0 0 1 50 572 Tm (WBC count            11.8     x10^9/L     4.5 - 11.0        HIGH) Tj
+/F3 10 Tf 1 0 0 1 50 555 Tm (Platelet count       250      x10^9/L     150 - 400) Tj
+/F2 12 Tf 1 0 0 1 50 528 Tm (BLOOD CHEMISTRY) Tj
+/F3 10 Tf 1 0 0 1 50 508 Tm (Test                 Result   Unit        Reference range   Flag) Tj
+/F3 10 Tf 1 0 0 1 50 491 Tm (Fasting glucose      5.9      mmol/L      3.9 - 5.5         HIGH) Tj
+/F3 10 Tf 1 0 0 1 50 474 Tm (Total cholesterol    5.4      mmol/L      below 5.2         HIGH) Tj
+/F3 10 Tf 1 0 0 1 50 457 Tm (Creatinine           88       umol/L      62 - 106) Tj
+/F1 11 Tf 1 0 0 1 50 430 Tm (Remarks: For clinical correlation.) Tj
+/F1 11 Tf 1 0 0 1 50 413 Tm (Medical technologist: R. Reyes, RMT \(fictional\)) Tj
+/F1 11 Tf 1 0 0 1 50 396 Tm (Pathologist: A. Villanueva, MD \(fictional\)) Tj
+ET
+endstream
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000267 00000 n 
+0000000337 00000 n 
+0000000412 00000 n 
+0000000480 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+2271
+%%EOF
