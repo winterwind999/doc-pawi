@@ -55,9 +55,12 @@ export default function AppLayout() {
   const postUnlockRoute = useSession((s) => s.postUnlockRoute);
   useEffect(() => {
     if (!db || !postUnlockRoute) return;
-    useSession.setState({ postUnlockRoute: null });
-    // Defer one frame so the tabs are mounted before pushing on top of them.
-    const t = setTimeout(() => router.push(postUnlockRoute as never), 0);
+    // Defer one frame so the tabs are mounted before pushing on top of them; the route is cleared
+    // only when the navigation actually happens.
+    const t = setTimeout(() => {
+      useSession.setState({ postUnlockRoute: null });
+      router.push(postUnlockRoute as never);
+    }, 50);
     return () => clearTimeout(t);
   }, [db, postUnlockRoute]);
 

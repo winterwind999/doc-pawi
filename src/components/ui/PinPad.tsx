@@ -23,9 +23,16 @@ export function PinDots({ length, filled, error = false }: { length: number; fil
   );
 }
 
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'extra', '0', 'back'] as const;
+const ROWS = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['extra', '0', 'back'],
+] as const;
 
-/** Large, accessible numeric keypad (no system keyboard, so the PIN never reaches IME suggestions). */
+type Key = (typeof ROWS)[number][number];
+
+/** Large, accessible 3×4 numeric keypad (no system keyboard, so the PIN never reaches IME suggestions). */
 export function PinPad({
   onDigit,
   onBackspace,
@@ -37,48 +44,54 @@ export function PinPad({
   extraKey?: { icon: 'fingerprint'; label: string; onPress: () => void } | null;
   disabled?: boolean;
 }) {
+  const renderKey = (key: Key) => {
+    if (key === 'extra') {
+      if (!extraKey) return <View key={key} className="h-16 w-20" />;
+      return (
+        <Pressable
+          key={key}
+          onPress={disabled ? undefined : extraKey.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={extraKey.label}
+          className="h-16 w-20 items-center justify-center rounded-2xl active:bg-surface-sunken"
+        >
+          <Icon name={extraKey.icon} size={30} color={colors.primary700} />
+        </Pressable>
+      );
+    }
+    if (key === 'back') {
+      return (
+        <Pressable
+          key={key}
+          onPress={disabled ? undefined : onBackspace}
+          accessibilityRole="button"
+          accessibilityLabel="Delete last digit"
+          className="h-16 w-20 items-center justify-center rounded-2xl active:bg-surface-sunken"
+        >
+          <Icon name="backspace-outline" size={28} color={colors.ink} />
+        </Pressable>
+      );
+    }
+    return (
+      <Pressable
+        key={key}
+        onPress={disabled ? undefined : () => onDigit(key)}
+        accessibilityRole="button"
+        accessibilityLabel={key}
+        className="h-16 w-20 items-center justify-center rounded-2xl border border-line bg-surface active:bg-primary-50"
+      >
+        <Text className="text-2xl font-semibold text-ink">{key}</Text>
+      </Pressable>
+    );
+  };
+
   return (
-    <View className={`w-full max-w-xs flex-row flex-wrap justify-between gap-y-3 self-center ${disabled ? 'opacity-40' : ''}`}>
-      {KEYS.map((key) => {
-        if (key === 'extra') {
-          if (!extraKey) return <View key={key} className="h-16 w-20" />;
-          return (
-            <Pressable
-              key={key}
-              onPress={disabled ? undefined : extraKey.onPress}
-              accessibilityRole="button"
-              accessibilityLabel={extraKey.label}
-              className="h-16 w-20 items-center justify-center rounded-2xl active:bg-surface-sunken"
-            >
-              <Icon name={extraKey.icon} size={30} color={colors.primary700} />
-            </Pressable>
-          );
-        }
-        if (key === 'back') {
-          return (
-            <Pressable
-              key={key}
-              onPress={disabled ? undefined : onBackspace}
-              accessibilityRole="button"
-              accessibilityLabel="Delete last digit"
-              className="h-16 w-20 items-center justify-center rounded-2xl active:bg-surface-sunken"
-            >
-              <Icon name="backspace-outline" size={28} color={colors.ink} />
-            </Pressable>
-          );
-        }
-        return (
-          <Pressable
-            key={key}
-            onPress={disabled ? undefined : () => onDigit(key)}
-            accessibilityRole="button"
-            accessibilityLabel={key}
-            className="h-16 w-20 items-center justify-center rounded-2xl border border-line bg-surface active:bg-primary-50"
-          >
-            <Text className="text-2xl font-semibold text-ink">{key}</Text>
-          </Pressable>
-        );
-      })}
+    <View className={`w-72 gap-3 self-center ${disabled ? 'opacity-40' : ''}`}>
+      {ROWS.map((row) => (
+        <View key={row.join('')} className="flex-row justify-between">
+          {row.map(renderKey)}
+        </View>
+      ))}
     </View>
   );
 }
