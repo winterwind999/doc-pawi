@@ -1,6 +1,6 @@
 import { validateToolCall } from '@/lib/ai/agent-tools';
 import type { CompletionRequest, CompletionResult } from '@/lib/ai/llm-types';
-import { listMessages, createConversation } from '@/lib/db/repositories/conversations';
+import { createConversation, listMessageAttachments, listMessages } from '@/lib/db/repositories/conversations';
 import { insertDocument } from '@/lib/db/repositories/documents';
 import { getActivitySummary } from '@/lib/db/repositories/stats';
 import { insertProposal, listProposalsForConversation } from '@/lib/db/repositories/proposals';
@@ -112,7 +112,7 @@ describe('chat orchestration', () => {
       conversationId: c.id,
       text: 'Summarize this report',
       model: MODEL,
-      attachment: { documentId: 'doc-1', name: 'lab.png', text: 'WBC count 11.8 HIGH' },
+      attachments: [{ documentId: 'doc-1', name: 'lab.png', text: 'WBC count 11.8 HIGH' }],
       complete: scripted({ text: 'It shows a WBC count marked high.' }, (r) => {
         prompt = r.messages[r.messages.length - 1].content;
       }),
@@ -122,6 +122,39 @@ describe('chat orchestration', () => {
     const [user, assistant] = await listMessages(db, c.id);
     expect(user.content).toBe('Summarize this report');
     expect(JSON.parse(assistant.model_metadata!).sources[0]).toMatchObject({ type: 'document', label: 'lab.png' });
+  });
+
+  it('sends several attached documents within one shared excerpt budget', async () => {
+    const db = await openTestDbWithProfile();
+    for (const [id, name] of [
+      ['doc-1', 'lab.png'],
+      ['doc-2', 'xray.png'],
+    ]) {
+      await insertDocument(db, { id, profileId: PROFILE_ID, displayName: name, mimeType: 'image/png', privateFilePath: `/vault/${id}.dpv`, fileSize: 10, sha256: 'x' });
+    }
+    const c = await createConversation(db, PROFILE_ID);
+    const longText = `Chest X-ray. ${'Normal findings. '.repeat(200)}`;
+    let prompt = '';
+    await sendChatMessage({
+      db,
+      profileId: PROFILE_ID,
+      conversationId: c.id,
+      text: 'Compare these two reports',
+      model: MODEL,
+      attachments: [
+        { documentId: 'doc-1', name: 'lab.png', text: 'WBC count 11.8 HIGH' },
+        { documentId: 'doc-2', name: 'xray.png', text: longText },
+      ],
+      complete: scripted({ text: 'Both are summarized.' }, (r) => {
+        prompt = r.messages[r.messages.length - 1].content;
+      }),
+    });
+    expect(prompt).toContain('Attached document "lab.png"');
+    expect(prompt).toContain('Attached document "xray.png"');
+    // Two documents get 1,000 characters each, so the long one is cut.
+    expect(prompt).toContain('Normal findings. '.repeat(50));
+    expect(prompt).not.toContain('Normal findings. '.repeat(100));
+    expect((await listMessageAttachments(db, c.id)).map((a) => a.display_name)).toEqual(['lab.png', 'xray.png']);
   });
 
   it('gives the model the dates the user meant and flags a suggestion on another day', async () => {

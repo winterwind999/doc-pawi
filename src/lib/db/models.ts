@@ -143,9 +143,18 @@ export interface MessageRow {
   role: MessageRole;
   content: string;
   status: MessageStatus;
+  /** Schema v1 single attachment; since v2 attachments live in `message_attachments`. */
   attachment_document_id: string | null;
   model_metadata: string | null;
   created_at: string;
+}
+
+/** A processed document attached to a user message (schema v2). */
+export interface MessageAttachmentRow {
+  message_id: string;
+  document_id: string;
+  position: number;
+  display_name: string;
 }
 
 export interface MedicalDocumentRow {

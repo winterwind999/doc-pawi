@@ -287,6 +287,22 @@ CREATE TABLE app_settings (
 );
 `,
   },
+  {
+    version: 2,
+    name: 'message_attachments',
+    // A message can carry several documents; v1's single attachment column is copied over.
+    sql: `
+CREATE TABLE message_attachments (
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  document_id TEXT NOT NULL REFERENCES medical_documents(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0),
+  PRIMARY KEY (message_id, document_id)
+);
+CREATE INDEX idx_message_attachments_document ON message_attachments(document_id);
+INSERT INTO message_attachments (message_id, document_id, position)
+  SELECT id, attachment_document_id, 0 FROM messages WHERE attachment_document_id IS NOT NULL;
+`,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

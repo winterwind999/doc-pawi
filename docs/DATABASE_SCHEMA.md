@@ -1,6 +1,6 @@
 # Doc Pawi — Database Schema
 
-> **Document role:** the actual persistent data model. Source of truth in code: [`src/lib/db/migrations.ts`](../src/lib/db/migrations.ts) (migration v1) and [`src/lib/db/models.ts`](../src/lib/db/models.ts). This document must change whenever a migration is added.
+> **Document role:** the actual persistent data model. Source of truth in code: [`src/lib/db/migrations.ts`](../src/lib/db/migrations.ts) (append-only migrations, listed under `schema_migrations` below) and [`src/lib/db/models.ts`](../src/lib/db/models.ts). This document must change whenever a migration is added.
 > Related: [Privacy](PRIVACY.md) · [Technical Requirements](TECHNICAL_REQUIREMENTS.md) · [Testing](TESTING.md)
 
 There is **no server database**. Each local profile has its own encrypted SQLite database on the phone.
@@ -35,7 +35,8 @@ erDiagram
   profiles ||--o{ facilities : has
   profiles ||--o{ record_proposals : has
   conversations ||--o{ messages : contains
-  messages }o--o| medical_documents : "attachment (SET NULL)"
+  messages ||--o{ message_attachments : "CASCADE"
+  medical_documents ||--o{ message_attachments : "CASCADE"
   medical_documents ||--o{ medical_records : "source (SET NULL)"
   doctors ||--o{ medical_records : "doctor (SET NULL)"
   treatments ||--o{ treatment_events : "CASCADE"
@@ -67,6 +68,11 @@ erDiagram
 ### `schema_migrations`
 Purpose: applied migration versions. Columns: `version INTEGER PK`, `name TEXT`, `applied_at TEXT`. Opening a database whose version is newer than the app is refused (downgrade protection).
 
+| Version | Name | Change |
+|---|---|---|
+| 1 | `initial_schema` | All tables below except `message_attachments` |
+| 2 | `message_attachments` | Several documents per chat message; copies v1's `messages.attachment_document_id` values |
+
 ### `profiles`
 One row per database (the profile that owns it).
 
@@ -94,9 +100,18 @@ One row per database (the profile that owns it).
 | role | TEXT | `user` / `assistant` |
 | content | TEXT | Final text (partial text if stopped) |
 | status | TEXT | `complete`, `generating`, `stopped`, `error`; `generating` rows left by a crash are marked `stopped` at next unlock |
-| attachment_document_id | TEXT → medical_documents SET NULL | Optional |
+| attachment_document_id | TEXT → medical_documents SET NULL | v1 only; no longer written (attachments are in `message_attachments`) |
 | model_metadata | TEXT JSON | Model id/file, engine, timings (tokens/s), stop reason, sources used, tool-call validation results, safety flags |
 | created_at | TEXT | Index `(conversation_id, created_at)` |
+
+### `message_attachments` (v2)
+Processed documents attached to a user message. The app allows up to three per message; their text goes to the model, not into the visible message.
+
+| Column | Type | Notes |
+|---|---|---|
+| message_id | TEXT → messages CASCADE | Primary key with `document_id` |
+| document_id | TEXT → medical_documents CASCADE | Deleting a document removes it from messages; the message stays. Index `(document_id)` |
+| position | INTEGER ≥ 0 | Order the user picked them |
 
 ### `medical_documents`
 | Column | Type | Notes |
@@ -176,6 +191,7 @@ Per-profile preferences as JSON values: `idleLockMinutes`, `remindersEnabled`, `
 |---|---|
 | Confirm a proposal | Insert record **or** (find/create treatment + insert event) + mark proposal confirmed (guarded `WHERE status = 'pending'`) + update document status |
 | Reject a proposal | Mark rejected + update document status if all its proposals are rejected |
+| Send a chat message | User message + its `message_attachments` rows |
 | Save AI response | Update assistant message + insert validated proposals |
 | Document analysis | Delete stale pending proposals + insert new proposal + save summary/status |
 | Create/update medication | Medication row + schedule rows (diffed) |

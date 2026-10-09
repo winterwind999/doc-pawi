@@ -39,6 +39,11 @@ export const PROFILE_ID = 'profile-test-1';
 
 export async function openTestDbWithProfile(): Promise<Db> {
   const db = await openTestDb();
+  await insertTestProfile(db);
+  return db;
+}
+
+export async function insertTestProfile(db: Db) {
   await insertProfile(db, {
     id: PROFILE_ID,
     authProvider: 'local',
@@ -53,5 +58,4 @@ export async function openTestDbWithProfile(): Promise<Db> {
       weight_unit: 'kg',
     }),
   });
-  return db;
 }

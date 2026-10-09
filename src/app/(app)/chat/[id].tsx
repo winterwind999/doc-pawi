@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AssistantBubble, UserBubble } from '@/components/chat/MessageBubble';
@@ -10,16 +11,18 @@ import { Banner } from '@/components/ui/Banner';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Mascot } from '@/components/ui/Layout';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useLiveQuery } from '@/hooks/use-live-query';
-import type { MessageRow, RecordProposalRow } from '@/lib/db/models';
-import { getConversation, listMessages } from '@/lib/db/repositories/conversations';
+import type { MedicalDocumentRow, MessageRow, RecordProposalRow } from '@/lib/db/models';
+import { getConversation, listMessageAttachments, listMessages } from '@/lib/db/repositories/conversations';
 import { listDocuments } from '@/lib/db/repositories/documents';
 import { listProposalsForConversation } from '@/lib/db/repositories/proposals';
-import { CHAT_PREFIX, sendChatMessage } from '@/lib/services/chat-service';
+import { CHAT_PREFIX, MAX_ATTACHMENTS, sendChatMessage } from '@/lib/services/chat-service';
+import { useDocumentJobs } from '@/lib/services/document-jobs';
 import { useChatStream } from '@/stores/chat-stream-store';
 import { currentModelMetadata, useModelStore } from '@/stores/model-store';
 import { useUnlockedSession } from '@/stores/session-store';
-import { colors } from '@/theme/colors';
+import { colors, type Tone } from '@/theme/colors';
 
 const SUGGESTIONS = [
   'When was my last hepatitis B dose?',
@@ -28,29 +31,43 @@ const SUGGESTIONS = [
   'What does a high WBC count mean in general?',
 ];
 
+/** Whether a document can be attached yet, and how to describe its processing state. */
+function documentState(d: MedicalDocumentRow, job: { step: 'ocr' | 'ai' } | undefined): { label: string; tone: Tone; attachable: boolean } {
+  if (job?.step === 'ocr' || d.processing_status === 'extracting_text') return { label: 'Reading text…', tone: 'info', attachable: false };
+  if (!d.extracted_text) {
+    return d.processing_status === 'failed'
+      ? { label: 'No text found', tone: 'danger', attachable: false }
+      : { label: 'Text not read yet', tone: 'neutral', attachable: false };
+  }
+  if (job?.step === 'ai' || d.processing_status === 'analyzing') return { label: 'Text ready · AI summary running', tone: 'info', attachable: true };
+  return { label: 'Ready', tone: 'success', attachable: true };
+}
+
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { db, profileId } = useUnlockedSession();
   const [draft, setDraft] = useState('');
-  const [attachment, setAttachment] = useState<{ id: string; name: string } | null>(null);
+  const [attachments, setAttachments] = useState<{ id: string; name: string }[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const listRef = useRef<FlatList<MessageRow>>(null);
   const activeJob = useModelStore((s) => s.activeJob);
   const modelReady = useModelStore((s) => s.loadState === 'ready');
   const streamConversation = useChatStream((s) => s.conversationId);
+  const runningJobs = useDocumentJobs((s) => s.running);
   const generatingHere = streamConversation === id;
   const modelStatus = useModelStatus();
 
   const data = useLiveQuery(
     async (db) => {
-      const [conversation, messages, proposals, documents] = await Promise.all([
+      const [conversation, messages, proposals, documents, attached] = await Promise.all([
         getConversation(db, id),
         listMessages(db, id),
         listProposalsForConversation(db, id),
         listDocuments(db, profileId, 20),
+        listMessageAttachments(db, id),
       ]);
-      return { conversation, messages, proposals, documents };
+      return { conversation, messages, proposals, documents, attached };
     },
     [id],
   );
@@ -61,7 +78,12 @@ export default function ChatScreen() {
     if (!p.message_id) continue;
     proposalsByMessage.set(p.message_id, [...(proposalsByMessage.get(p.message_id) ?? []), p]);
   }
-  const docName = (docId: string | null) => data.data?.documents.find((d) => d.id === docId)?.display_name ?? null;
+  const attachmentNames = new Map<string, string[]>();
+  for (const a of data.data?.attached ?? []) {
+    attachmentNames.set(a.message_id, [...(attachmentNames.get(a.message_id) ?? []), a.display_name]);
+  }
+
+  const scrollToEnd = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 250);
 
   useEffect(() => {
     if (messages.length) setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
@@ -73,24 +95,38 @@ export default function ChatScreen() {
     if (modelReady && !activeJob) void useModelStore.getState().prefill(CHAT_PREFIX);
   }, [modelReady, activeJob]);
 
+  const toggleAttachment = (doc: MedicalDocumentRow) => {
+    setAttachments((list) => {
+      if (list.some((a) => a.id === doc.id)) return list.filter((a) => a.id !== doc.id);
+      if (list.length >= MAX_ATTACHMENTS) return list;
+      return [...list, { id: doc.id, name: doc.display_name }];
+    });
+  };
+
   const send = async (text: string) => {
     const question = text.trim();
     if (!question || generatingHere || activeJob) return;
     setDraft('');
     setSendError(null);
-    const attached = attachment;
-    setAttachment(null);
+    const attached = attachments;
+    setAttachments([]);
+    setPickerOpen(false);
     const stream = useChatStream.getState();
     stream.start(id);
     try {
-      const doc = attached ? data.data?.documents.find((d) => d.id === attached.id) : null;
-      const docText = doc ? [doc.summary ? `Summary: ${doc.summary}` : '', doc.extracted_text ?? ''].filter(Boolean).join('\n') : '';
+      const docs = attached
+        .map((a) => {
+          const doc = data.data?.documents.find((d) => d.id === a.id);
+          const docText = doc ? [doc.summary ? `Summary: ${doc.summary}` : '', doc.extracted_text ?? ''].filter(Boolean).join('\n') : '';
+          return docText ? { documentId: a.id, name: a.name, text: docText } : null;
+        })
+        .filter((d): d is NonNullable<typeof d> => d !== null);
       await sendChatMessage({
         db,
         profileId,
         conversationId: id,
         text: question,
-        attachment: attached && docText ? { documentId: attached.id, name: attached.name, text: docText } : null,
+        attachments: docs,
         complete: (request) => useModelStore.getState().complete('chat', request),
         model: currentModelMetadata(),
         onAssistantStarted: (messageId) => useChatStream.getState().attach(messageId),
@@ -104,16 +140,20 @@ export default function ChatScreen() {
   };
 
   const notInstalled = modelStatus.label === 'Not installed';
+  const documents = data.data?.documents ?? [];
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-surface-muted">
       <Stack.Screen options={{ title: data.data?.conversation?.title ?? 'Conversation' }} />
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
+      {/* Android 15+ draws edge to edge, so the window does not shrink for the keyboard: this view
+          adds bottom padding equal to the keyboard and measures its own offset below the header. */}
+      <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
         <FlatList
           ref={listRef}
           data={messages}
           keyExtractor={(m) => m.id}
           contentContainerClassName="gap-4 p-4"
+          keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <View className="gap-3">
               {notInstalled ? (
@@ -156,7 +196,7 @@ export default function ChatScreen() {
           }
           renderItem={({ item }) =>
             item.role === 'user' ? (
-              <UserBubble message={item} attachmentName={docName(item.attachment_document_id)} />
+              <UserBubble message={item} attachmentNames={attachmentNames.get(item.id) ?? []} />
             ) : (
               <View className="gap-2">
                 <AssistantBubble message={item} />
@@ -170,25 +210,42 @@ export default function ChatScreen() {
         />
 
         {pickerOpen ? (
-          <View className="max-h-64 gap-2 border-t border-line bg-surface p-3">
-            <Text className="text-sm font-semibold text-ink">Attach a processed document</Text>
-            {(data.data?.documents ?? []).filter((d) => d.extracted_text).slice(0, 6).map((d) => (
-              <Pressable
-                key={d.id}
-                onPress={() => {
-                  setAttachment({ id: d.id, name: d.display_name });
-                  setPickerOpen(false);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Attach ${d.display_name}`}
-                className="min-h-[44px] flex-row items-center gap-2 rounded-xl px-2 active:bg-surface-sunken"
-              >
-                <Icon name="file-document-outline" size={20} color={colors.ocean600} />
-                <Text className="flex-1 text-sm text-ink" numberOfLines={1}>
-                  {d.display_name}
-                </Text>
-              </Pressable>
-            ))}
+          <View className="max-h-80 gap-2 border-t border-line bg-surface p-3">
+            <View className="flex-row items-center justify-between gap-2">
+              <Text className="flex-1 text-sm font-semibold text-ink">Attach documents (up to {MAX_ATTACHMENTS})</Text>
+              <Button label="Done" size="sm" variant="ghost" onPress={() => setPickerOpen(false)} />
+            </View>
+            <ScrollView className="max-h-52" keyboardShouldPersistTaps="handled" contentContainerClassName="gap-1">
+              {documents.length === 0 ? <Text className="text-sm text-ink-muted">No documents imported yet.</Text> : null}
+              {documents.map((d) => {
+                const state = documentState(d, runningJobs[d.id]);
+                const selected = attachments.some((a) => a.id === d.id);
+                const full = !selected && attachments.length >= MAX_ATTACHMENTS;
+                const disabled = !state.attachable || full;
+                return (
+                  <Pressable
+                    key={d.id}
+                    onPress={disabled ? undefined : () => toggleAttachment(d)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected, disabled }}
+                    accessibilityLabel={`${d.display_name}, ${state.label}`}
+                    className={`min-h-[52px] flex-row items-center gap-2 rounded-xl px-2 py-1.5 ${disabled ? 'opacity-50' : 'active:bg-surface-sunken'}`}
+                  >
+                    <Icon
+                      name={selected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                      size={22}
+                      color={selected ? colors.primary600 : colors.inkSoft}
+                    />
+                    <View className="flex-1 gap-1">
+                      <Text className="text-sm text-ink" numberOfLines={1}>
+                        {d.display_name}
+                      </Text>
+                      <StatusBadge label={state.label} tone={state.tone} />
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
             <Button
               label="Import a new document"
               size="sm"
@@ -203,22 +260,32 @@ export default function ChatScreen() {
         ) : null}
 
         <View className="gap-2 border-t border-line bg-surface p-3">
-          {attachment ? (
-            <View className="flex-row items-center gap-2 self-start rounded-full bg-ocean-50 px-3 py-1.5">
-              <Icon name="paperclip" size={14} color={colors.ocean600} />
-              <Text className="max-w-[220px] text-xs font-semibold text-ocean-600" numberOfLines={1}>
-                {attachment.name}
-              </Text>
-              <Pressable onPress={() => setAttachment(null)} accessibilityRole="button" accessibilityLabel="Remove attachment" hitSlop={8}>
-                <Icon name="close" size={14} color={colors.ocean600} />
-              </Pressable>
+          {attachments.length ? (
+            <View className="flex-row flex-wrap gap-2">
+              {attachments.map((a) => (
+                <View key={a.id} className="flex-row items-center gap-2 rounded-full bg-ocean-50 px-3 py-1.5">
+                  <Icon name="paperclip" size={14} color={colors.ocean600} />
+                  <Text className="max-w-[200px] text-xs font-semibold text-ocean-600" numberOfLines={1}>
+                    {a.name}
+                  </Text>
+                  <Pressable
+                    onPress={() => setAttachments((list) => list.filter((x) => x.id !== a.id))}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove attachment ${a.name}`}
+                    hitSlop={8}
+                  >
+                    <Icon name="close" size={14} color={colors.ocean600} />
+                  </Pressable>
+                </View>
+              ))}
             </View>
           ) : null}
           <View className="flex-row items-end gap-2">
-            <IconButton icon="paperclip" label="Attach a document" onPress={() => setPickerOpen((v) => !v)} />
+            <IconButton icon="paperclip" label="Attach documents" onPress={() => setPickerOpen((v) => !v)} />
             <TextInput
               value={draft}
               onChangeText={setDraft}
+              onFocus={scrollToEnd}
               placeholder={activeJob === 'document' ? 'Doc Pawi is analyzing a document…' : 'Ask about your health records…'}
               placeholderTextColor={colors.inkSoft}
               multiline

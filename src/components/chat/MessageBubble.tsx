@@ -13,28 +13,40 @@ import { parseJson } from '@/lib/json';
 import { useChatStream } from '@/stores/chat-stream-store';
 import { colors } from '@/theme/colors';
 
-export function UserBubble({ message, attachmentName }: { message: MessageRow; attachmentName?: string | null }) {
+/** The user's message. Tapping it shows or hides when it was sent. */
+export function UserBubble({ message, attachmentNames = [] }: { message: MessageRow; attachmentNames?: readonly string[] }) {
   const safety = assessMessage(message.content);
+  const [showTime, setShowTime] = useState(false);
+  const sentAt = formatTimestamp(message.created_at);
   return (
-    <View className="items-end gap-2">
-      <View className="max-w-[85%] gap-1 rounded-2xl rounded-br-md bg-primary-600 px-4 py-3">
-        {attachmentName ? (
-          <View className="flex-row items-center gap-1.5">
+    <View className="items-end gap-1">
+      <Pressable
+        onPress={() => setShowTime((v) => !v)}
+        accessibilityHint={showTime ? 'Hides when this message was sent' : 'Shows when this message was sent'}
+        className="max-w-[85%] gap-1 rounded-2xl rounded-br-md bg-primary-600 px-4 py-3 active:bg-primary-700"
+      >
+        {attachmentNames.map((name, i) => (
+          <View key={`${i}-${name}`} className="flex-row items-center gap-1.5">
             <Icon name="paperclip" size={14} color={colors.white} />
-            <Text className="text-xs font-semibold text-white" numberOfLines={1}>
-              {attachmentName}
+            <Text className="shrink text-xs font-semibold text-white" numberOfLines={1}>
+              {name}
             </Text>
           </View>
-        ) : null}
+        ))}
         <Text selectable className="text-base leading-6 text-white">
           {message.content}
         </Text>
-      </View>
+      </Pressable>
+      {showTime && sentAt ? (
+        <Text accessibilityLiveRegion="polite" className="px-1 text-[11px] text-ink-soft">
+          Sent {sentAt}
+        </Text>
+      ) : null}
       {safety.emergency ? (
         <Banner
           tone="danger"
           title="Possible emergency"
-          className="w-full"
+          className="mt-1 w-full"
           action={
             <Pressable
               onPress={() => void Linking.openURL(`tel:${EMERGENCY_NUMBER}`)}

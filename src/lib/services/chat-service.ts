@@ -17,6 +17,20 @@ import type { Db } from '../db/types';
 
 export type CompleteFn = (request: CompletionRequest) => Promise<CompletionResult>;
 
+export interface ChatAttachment {
+  documentId: string;
+  name: string;
+  text: string;
+}
+
+/** Most documents one message can carry. */
+export const MAX_ATTACHMENTS = 3;
+/**
+ * Characters of each document's text given to the model, by how many are attached. Longer prompts
+ * take longer to process on a phone, so several documents share a budget only a little larger than one.
+ */
+const EXCERPT_CHARS = [1500, 1000, 800] as const;
+
 /** Adds a visible warning when a suggested date is not one of the dates the user's words point to. */
 function withDateCheck(outcome: ToolCallOutcome, resolved: readonly ResolvedDate[]): ToolCallOutcome {
   if (!outcome.ok) return outcome;
@@ -64,36 +78,44 @@ export async function sendChatMessage(args: {
   text: string;
   complete: CompleteFn;
   model: Pick<ModelRunMetadata, 'modelId' | 'modelFile' | 'engine'>;
-  /** A processed document the user attached; its text is given to the model, not shown in the bubble. */
-  attachment?: { documentId: string; name: string; text: string } | null;
+  /** Processed documents the user attached; their text goes to the model, not into the bubble. */
+  attachments?: readonly ChatAttachment[] | null;
   onAssistantStarted?: (messageId: string) => void;
   onText?: (text: string) => void;
   /** Injectable clock for tests. */
   now?: Date;
 }) {
-  const { db, profileId, conversationId, text, attachment } = args;
+  const { db, profileId, conversationId, text } = args;
+  const attachments = (args.attachments ?? []).slice(0, MAX_ATTACHMENTS);
   const now = args.now ?? new Date();
   const today = todayLocal(now);
   const question = text.trim();
   if (!question) return null;
 
   const history = await listMessages(db, conversationId);
-  await insertMessage(db, {
-    conversationId,
-    role: 'user',
-    content: question,
-    attachmentDocumentId: attachment?.documentId ?? null,
-  });
+  // The message and its attachment rows commit together.
+  await db.transaction((tx) =>
+    insertMessage(tx, {
+      conversationId,
+      role: 'user',
+      content: question,
+      attachmentDocumentIds: attachments.map((a) => a.documentId),
+    }),
+  );
   if (history.length === 0) await renameConversation(db, conversationId, titleFromMessage(question));
 
   const safety = assessMessage(question);
   const doseChangeQuestion = asksAboutDoseChange(question);
   const resolvedDates = resolveRelativeDates(question, today);
   const retrieval = await retrieveHealthContext(db, profileId, question);
-  if (attachment) {
-    const excerpt = attachment.text.length > 1500 ? `${attachment.text.slice(0, 1500)}…` : attachment.text;
-    retrieval.contextText = `Attached document "${attachment.name}" (on-device OCR text or summary; may contain recognition errors):\n${excerpt}\n\n${retrieval.contextText}`;
-    retrieval.sources.unshift({ type: 'document', id: attachment.documentId, label: attachment.name });
+  if (attachments.length) {
+    const budget = EXCERPT_CHARS[attachments.length - 1];
+    const blocks = attachments.map((a) => {
+      const excerpt = a.text.length > budget ? `${a.text.slice(0, budget)}…` : a.text;
+      return `Attached document "${a.name}" (on-device OCR text or summary; may contain recognition errors):\n${excerpt}`;
+    });
+    retrieval.contextText = `${blocks.join('\n\n')}\n\n${retrieval.contextText}`;
+    retrieval.sources.unshift(...attachments.map((a) => ({ type: 'document' as const, id: a.documentId, label: a.name })));
   }
 
   const baseMeta: ModelRunMetadata = {

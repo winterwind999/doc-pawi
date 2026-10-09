@@ -1,6 +1,14 @@
-import { LATEST_SCHEMA_VERSION, migrate } from '@/lib/db/migrations';
-import { createConversation, deleteConversation, insertMessage, listMessages } from '@/lib/db/repositories/conversations';
+import { createDb } from '@/lib/db/database';
+import { LATEST_SCHEMA_VERSION, migrate, MIGRATIONS } from '@/lib/db/migrations';
+import {
+  createConversation,
+  deleteConversation,
+  insertMessage,
+  listMessageAttachments,
+  listMessages,
+} from '@/lib/db/repositories/conversations';
 import { createDoctor, deleteDoctor, getDoctor } from '@/lib/db/repositories/doctors';
+import { insertDocument } from '@/lib/db/repositories/documents';
 import { getHmo, insertHmo } from '@/lib/db/repositories/hmos';
 import {
   archiveMedication,
@@ -17,6 +25,7 @@ import { getProfile } from '@/lib/db/repositories/profiles';
 import { deleteRecord, getRecord, insertRecord, listRecords, updateRecord } from '@/lib/db/repositories/records';
 import { getSettings, setSetting } from '@/lib/db/repositories/settings';
 import { insertEvent, insertTreatment, listUpcomingEvents } from '@/lib/db/repositories/treatments';
+import type { Db } from '@/lib/db/types';
 import {
   doctorInputSchema,
   hmoInputSchema,
@@ -26,7 +35,18 @@ import {
   treatmentInputSchema,
 } from '@/lib/validation/schemas';
 
-import { openTestDb, openTestDbWithProfile, PROFILE_ID } from './helpers/node-db';
+import { insertTestProfile, openRawTestConnection, openTestDb, openTestDbWithProfile, PROFILE_ID } from './helpers/node-db';
+
+const addDocument = (db: Db, id: string, displayName: string) =>
+  insertDocument(db, {
+    id,
+    profileId: PROFILE_ID,
+    displayName,
+    mimeType: 'image/png',
+    privateFilePath: `/vault/${id}.dpv`,
+    fileSize: 10,
+    sha256: 'x',
+  });
 
 describe('migrations', () => {
   it('creates the schema and records the version', async () => {
@@ -67,6 +87,27 @@ describe('migrations', () => {
     const db = await openTestDb();
     await db.run('INSERT INTO schema_migrations (version, name, applied_at) VALUES (999, ?, ?)', ['future', 'now']);
     await expect(migrate(db)).rejects.toThrow(/newer than this app supports/);
+  });
+
+  it('upgrades a v1 database and keeps its message attachments', async () => {
+    // A database exactly as version 1 of the app left it, with a message that has one attachment.
+    const db = createDb(openRawTestConnection());
+    await db.exec('CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY NOT NULL, name TEXT NOT NULL, applied_at TEXT NOT NULL);');
+    await db.exec(MIGRATIONS[0].sql);
+    await db.run('INSERT INTO schema_migrations (version, name, applied_at) VALUES (1, ?, ?)', [MIGRATIONS[0].name, 'n']);
+    await insertTestProfile(db);
+    await addDocument(db, 'doc-1', 'lab.png');
+    const c = await createConversation(db, PROFILE_ID);
+    await db.run(
+      `INSERT INTO messages (id, conversation_id, role, content, attachment_document_id, created_at)
+       VALUES ('m1', ?, 'user', 'Summarize this', 'doc-1', 'n')`,
+      [c.id],
+    );
+
+    expect(await migrate(db)).toMatchObject({ from: 1, to: LATEST_SCHEMA_VERSION });
+    expect((await listMessageAttachments(db, c.id)).map((a) => [a.message_id, a.display_name, a.position])).toEqual([
+      ['m1', 'lab.png', 0],
+    ]);
   });
 });
 
@@ -169,6 +210,27 @@ describe('conversations', () => {
     expect(messages.map((m) => m.role)).toEqual(['user', 'assistant']);
     await deleteConversation(db, c.id);
     expect(await listMessages(db, c.id)).toHaveLength(0);
+  });
+
+  it('stores several attachments per message in the order picked, once each', async () => {
+    const db = await openTestDbWithProfile();
+    await addDocument(db, 'doc-a', 'a.png');
+    await addDocument(db, 'doc-b', 'b.png');
+    const c = await createConversation(db, PROFILE_ID);
+    const m = await insertMessage(db, {
+      conversationId: c.id,
+      role: 'user',
+      content: 'Compare these',
+      attachmentDocumentIds: ['doc-b', 'doc-a', 'doc-b'],
+    });
+    expect((await listMessageAttachments(db, c.id)).map((a) => [a.message_id, a.display_name, a.position])).toEqual([
+      [m.id, 'b.png', 0],
+      [m.id, 'a.png', 1],
+    ]);
+    // Deleting a document detaches it; the message stays.
+    await db.run('DELETE FROM medical_documents WHERE id = ?', ['doc-b']);
+    expect((await listMessageAttachments(db, c.id)).map((a) => a.display_name)).toEqual(['a.png']);
+    expect(await listMessages(db, c.id)).toHaveLength(1);
   });
 });
 

@@ -1,6 +1,6 @@
 import { nowIso } from '../../dates';
 import { newId } from '../../ids';
-import type { ConversationRow, MessageRole, MessageRow, MessageStatus } from '../models';
+import type { ConversationRow, MessageAttachmentRow, MessageRole, MessageRow, MessageStatus } from '../models';
 import type { Db, DbExecutor } from '../types';
 
 export interface ConversationListItem extends ConversationRow {
@@ -66,6 +66,19 @@ export async function listMessages(db: DbExecutor, conversationId: string) {
   );
 }
 
+/** Attachments of every message in a conversation, in attachment order, with document names. */
+export async function listMessageAttachments(db: DbExecutor, conversationId: string) {
+  return db.all<MessageAttachmentRow>(
+    `SELECT a.message_id, a.document_id, a.position, d.display_name
+     FROM message_attachments a
+     JOIN messages m ON m.id = a.message_id
+     JOIN medical_documents d ON d.id = a.document_id
+     WHERE m.conversation_id = ?
+     ORDER BY a.message_id, a.position`,
+    [conversationId],
+  );
+}
+
 export async function insertMessage(
   db: DbExecutor,
   args: {
@@ -73,7 +86,8 @@ export async function insertMessage(
     role: MessageRole;
     content: string;
     status?: MessageStatus;
-    attachmentDocumentId?: string | null;
+    /** Processed documents attached to a user message, in the order the user picked them. */
+    attachmentDocumentIds?: readonly string[];
     modelMetadata?: unknown;
   },
 ) {
@@ -83,7 +97,7 @@ export async function insertMessage(
     role: args.role,
     content: args.content,
     status: args.status ?? 'complete',
-    attachment_document_id: args.attachmentDocumentId ?? null,
+    attachment_document_id: null,
     model_metadata: args.modelMetadata === undefined ? null : JSON.stringify(args.modelMetadata),
     created_at: nowIso(),
   };
@@ -101,6 +115,14 @@ export async function insertMessage(
       row.created_at,
     ],
   );
+  const attachments = [...new Set(args.attachmentDocumentIds ?? [])];
+  for (const [position, documentId] of attachments.entries()) {
+    await db.run('INSERT INTO message_attachments (message_id, document_id, position) VALUES (?, ?, ?)', [
+      row.id,
+      documentId,
+      position,
+    ]);
+  }
   await touchConversation(db, args.conversationId);
   return row;
 }
