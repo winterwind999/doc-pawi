@@ -27,10 +27,24 @@ class DocPawiNativeModule : Module() {
     get() = appContext.reactContext ?: throw NativeOperationException("React context is not available")
 
   private fun openSource(source: String): InputStream = when {
-    source.startsWith("content://") || source.startsWith("file://") ->
+    source.startsWith("content://") || source.startsWith("file://") || source.startsWith("android.resource://") ->
       context.contentResolver.openInputStream(Uri.parse(source))
         ?: throw NativeOperationException("Could not open the selected file.")
-    else -> FileInputStream(File(source))
+    File(source).exists() -> FileInputStream(File(source))
+    else -> openBundledResource(source)
+  }
+
+  /**
+   * Release builds embed images bundled with the JS code (for example the synthetic sample report)
+   * as Android resources, and expo-asset then reports the resource name instead of a file path.
+   */
+  private fun openBundledResource(name: String): InputStream {
+    for (type in listOf("drawable", "raw")) {
+      @Suppress("DiscouragedApi")
+      val id = context.resources.getIdentifier(name, type, context.packageName)
+      if (id != 0) return context.resources.openRawResource(id)
+    }
+    throw NativeOperationException("File not found: $name")
   }
 
   private inline fun <T> guarded(block: () -> T): T = try {
