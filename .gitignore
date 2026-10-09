@@ -31,7 +31,15 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# AI model weights and build outputs (never committed)
+*.gguf
+*.apk
+*.aab
+hs_err_pid*.log
+coverage/
 
 # typescript
 *.tsbuildinfo
@@ -41,3 +49,8 @@ example
 # generated native folders
 /ios
 /android
+
+# local Expo module build outputs
+modules/*/android/build/
+modules/*/android/.cxx/
+modules/*/android/.gradle/
