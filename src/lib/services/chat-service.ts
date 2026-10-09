@@ -4,6 +4,7 @@ import type { CompletionRequest, CompletionResult, ModelRunMetadata } from '../a
 import { buildChatMessages, CHAT_SYSTEM_PROMPT } from '../ai/prompts';
 import { retrieveHealthContext } from '../ai/retrieval';
 import { asksAboutDoseChange, assessMessage } from '../ai/safety';
+import { todayLocal } from '../dates';
 import {
   insertMessage,
   listMessages,
@@ -119,7 +120,9 @@ export async function sendChatMessage(args: {
     return { assistantId: assistant.id, status: 'error' as const };
   }
 
-  const outcomes = result.toolCalls.slice(0, MAX_TOOL_CALLS_PER_RESPONSE).map((call) => validateToolCall(call));
+  const outcomes = result.toolCalls
+    .slice(0, MAX_TOOL_CALLS_PER_RESPONSE)
+    .map((call) => validateToolCall(call, todayLocal(), question));
   const stopped = result.stopReason === 'stopped';
   let content = result.text.trim();
   if (!content && outcomes.some((o) => o.ok)) {

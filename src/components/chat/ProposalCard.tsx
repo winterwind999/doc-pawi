@@ -27,7 +27,10 @@ import { useUnlockedSession } from '@/stores/session-store';
 const UNVERIFIED_NOTE: Record<string, string> = {
   event_date: 'Date was not given — add it if you know it.',
   date: 'Date was not given — add it if you know it.',
+  facility: 'The facility was not in your message — the AI may have taken it from your records. Check it before saving.',
 };
+
+const facilityOf = (p: ProposalPayload) => (p.kind === 'medical_record' ? p.record.facility : p.event.facility);
 
 function RecordFields({
   payload,
@@ -246,7 +249,8 @@ export function ProposalCard({ proposal }: { proposal: RecordProposalRow }) {
         </Banner>
       ))}
       {payload.unverified_fields.map((f) =>
-        UNVERIFIED_NOTE[f] ? (
+        // The facility note stays only while the facility is still the model's suggestion.
+        UNVERIFIED_NOTE[f] && !(f === 'facility' && facilityOf(payload) !== facilityOf(original)) ? (
           <Text key={f} className="text-xs text-sand-700">
             {UNVERIFIED_NOTE[f]}
           </Text>

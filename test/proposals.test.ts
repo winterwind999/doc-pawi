@@ -105,3 +105,28 @@ describe('tool-call validation', () => {
     expect(JSON.stringify(r)).not.toContain('DROP');
   });
 });
+
+describe('chat proposal facility check', () => {
+  const flu = (facility: string) => ({
+    name: 'propose_treatment_event',
+    arguments: {
+      treatment_name: 'Influenza vaccine',
+      treatment_type: 'vaccination',
+      event_title: 'Flu shot',
+      status: 'completed',
+      date: '2026-10-10',
+      facility,
+    },
+  });
+  const message = 'I had my flu shot today at the city health center.';
+
+  it('marks a facility the user did not mention (copied from records on the test phone)', () => {
+    const outcome = validateToolCall(flu('Quezon City Health Center'), '2026-10-10', message);
+    expect(outcome.ok && outcome.payload.unverified_fields).toEqual(['facility']);
+  });
+
+  it('accepts a facility that is in the user message', () => {
+    const outcome = validateToolCall(flu('City health center'), '2026-10-10', message);
+    expect(outcome.ok && outcome.payload.unverified_fields).toEqual([]);
+  });
+});

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { isValidIsoDate, todayLocal } from '../dates';
+import { isGrounded, normalizeForMatch } from './extraction';
 import type { ProposalPayload } from '../services/proposal-service';
 
 /**
@@ -126,11 +127,21 @@ function parseArguments(args: unknown): unknown {
 }
 
 /**
+ * True when the model filled in a facility the user did not mention, e.g. copying "Quezon City
+ * Health Center" from the records when the user only said "the city health center".
+ */
+function facilityNotInMessage(facility: string | null, userMessage: string | undefined) {
+  if (!facility || userMessage === undefined) return false;
+  return !isGrounded(facility, normalizeForMatch(userMessage));
+}
+
+/**
  * Validates one model-generated tool call and converts it to a proposal payload.
  * Dates the model produced are checked against today; impossible values become warnings and the
- * field is cleared so the user must supply it.
+ * field is cleared so the user must supply it. With `userMessage`, a facility that does not appear
+ * in the user's own words is listed as unverified so the card asks the user to check it.
  */
-export function validateToolCall(call: RawToolCall, today: string = todayLocal()): ToolCallOutcome {
+export function validateToolCall(call: RawToolCall, today: string = todayLocal(), userMessage?: string): ToolCallOutcome {
   const args = parseArguments(call.arguments);
   if (typeof args === 'symbol') return { ok: false, name: call.name, error: 'Arguments were not valid JSON.' };
 
@@ -158,7 +169,10 @@ export function validateToolCall(call: RawToolCall, today: string = todayLocal()
           facility: a.facility,
           structured_data: {},
         },
-        unverified_fields: eventDate ? [] : ['event_date'],
+        unverified_fields: [
+          ...(eventDate ? [] : ['event_date']),
+          ...(facilityNotInMessage(a.facility, userMessage) ? ['facility'] : []),
+        ],
         warnings,
       },
     };
@@ -194,7 +208,7 @@ export function validateToolCall(call: RawToolCall, today: string = todayLocal()
           facility: a.facility,
           notes: a.notes,
         },
-        unverified_fields: date ? [] : ['date'],
+        unverified_fields: [...(date ? [] : ['date']), ...(facilityNotInMessage(a.facility, userMessage) ? ['facility'] : [])],
         warnings,
       },
     };
