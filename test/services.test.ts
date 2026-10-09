@@ -1,13 +1,16 @@
+import { validateToolCall } from '@/lib/ai/agent-tools';
 import type { CompletionRequest, CompletionResult } from '@/lib/ai/llm-types';
 import { listMessages, createConversation } from '@/lib/db/repositories/conversations';
 import { insertDocument } from '@/lib/db/repositories/documents';
 import { getActivitySummary } from '@/lib/db/repositories/stats';
-import { listProposalsForConversation } from '@/lib/db/repositories/proposals';
+import { insertProposal, listProposalsForConversation } from '@/lib/db/repositories/proposals';
 import { listRecords } from '@/lib/db/repositories/records';
 import { insertRecord } from '@/lib/db/repositories/records';
+import { insertEvent, listTreatmentsWithEvents } from '@/lib/db/repositories/treatments';
 import { hasDemoData, loadDemoData, removeDemoData } from '@/lib/demo/synthetic-data';
 import { sendChatMessage } from '@/lib/services/chat-service';
-import { recordInputSchema } from '@/lib/validation/schemas';
+import { confirmProposal } from '@/lib/services/proposal-service';
+import { recordInputSchema, treatmentEventInputSchema } from '@/lib/validation/schemas';
 
 import { openTestDbWithProfile, PROFILE_ID } from './helpers/node-db';
 
@@ -155,5 +158,44 @@ describe('synthetic demo data', () => {
     await removeDemoData(db, PROFILE_ID);
     expect(await hasDemoData(db, PROFILE_ID)).toBe(false);
     expect((await listRecords(db, PROFILE_ID)).map((r) => r.title)).toEqual(['My own note']);
+  });
+
+  it('keeps events the user added to a demo series when demo data is removed', async () => {
+    const db = await openTestDbWithProfile();
+    await loadDemoData(db, PROFILE_ID, new Date(2026, 9, 9));
+    const demoFlu = (await listTreatmentsWithEvents(db, PROFILE_ID)).find((t) => t.title === 'Influenza vaccine 2026');
+    expect(demoFlu?.source_type).toBe('demo');
+    // A dose the user recorded by hand on the demo series.
+    await insertEvent(db, {
+      profileId: PROFILE_ID,
+      sourceType: 'manual',
+      input: treatmentEventInputSchema.parse({
+        treatment_id: demoFlu!.id,
+        title: 'Flu shot',
+        event_type: 'dose',
+        status: 'completed',
+        completed_date: '2026-10-10',
+      }),
+    });
+    // A dose confirmed from chat never joins the demo series.
+    const outcome = validateToolCall(
+      {
+        name: 'propose_treatment_event',
+        arguments: { treatment_name: 'Influenza vaccine 2026', treatment_type: 'vaccination', event_title: 'Flu shot', status: 'completed', date: '2026-10-10' },
+      },
+      '2026-10-10',
+    );
+    if (!outcome.ok) throw new Error(outcome.error);
+    const proposal = await insertProposal(db, { profileId: PROFILE_ID, origin: 'chat', proposalType: outcome.payload.kind, payload: outcome.payload });
+    const confirmed = await confirmProposal(db, { profileId: PROFILE_ID, proposalId: proposal.id });
+    expect(confirmed).toMatchObject({ type: 'treatment_event', createdTreatment: true });
+
+    await removeDemoData(db, PROFILE_ID);
+    const left = await listTreatmentsWithEvents(db, PROFILE_ID);
+    expect(left.every((t) => t.source_type !== 'demo')).toBe(true);
+    expect(left.flatMap((t) => t.events.map((e) => `${t.title}: ${e.title} ${e.completed_date}`)).sort()).toEqual([
+      'Influenza vaccine 2026: Flu shot 2026-10-10',
+      'Influenza vaccine 2026: Flu shot 2026-10-10',
+    ]);
   });
 });

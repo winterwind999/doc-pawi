@@ -345,9 +345,30 @@ export async function loadDemoData(db: Db, profileId: string, now: Date = new Da
   });
 }
 
-/** Removes every row created by `loadDemoData`. User-entered data is untouched. */
+/**
+ * Removes every row created by `loadDemoData`. User-entered data is untouched: events the user
+ * added to a demo treatment series (which would otherwise cascade-delete with it) are first moved
+ * to a new series of their own with the same title and kind.
+ */
 export async function removeDemoData(db: Db, profileId: string) {
   await db.transaction(async (tx) => {
+    await tx.run("DELETE FROM treatment_events WHERE profile_id = ? AND source_type = 'demo'", [profileId]);
+    const keep = await tx.all<{ id: string; title: string; kind: string; status: string }>(
+      `SELECT id, title, kind, status FROM treatments t
+       WHERE profile_id = ? AND source_type = 'demo'
+         AND EXISTS (SELECT 1 FROM treatment_events e WHERE e.treatment_id = t.id)`,
+      [profileId],
+    );
+    for (const t of keep) {
+      const id = newId();
+      const now = nowIso();
+      await tx.run(
+        `INSERT INTO treatments (id, profile_id, title, kind, status, start_date, source_type, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, (SELECT MIN(COALESCE(completed_date, scheduled_date)) FROM treatment_events WHERE treatment_id = ?), 'manual', ?, ?)`,
+        [id, profileId, t.title, t.kind, t.status, t.id, now, now],
+      );
+      await tx.run('UPDATE treatment_events SET treatment_id = ?, updated_at = ? WHERE treatment_id = ?', [id, now, t.id]);
+    }
     for (const table of ['medical_records', 'treatments', 'medications', 'doctors', 'hmos', 'facilities']) {
       await tx.run(`DELETE FROM ${table} WHERE profile_id = ? AND source_type = 'demo'`, [profileId]);
     }

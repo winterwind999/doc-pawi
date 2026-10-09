@@ -230,9 +230,10 @@ export async function listOverdueEvents(db: DbExecutor, profileId: string, today
 }
 
 /** Case-insensitive lookup used to attach an AI-proposed event to an existing treatment. */
+/** Finds the user's own series with this title; synthetic demo series are never matched. */
 export async function findTreatmentByTitle(db: DbExecutor, profileId: string, title: string) {
   return db.get<TreatmentRow>(
-    'SELECT * FROM treatments WHERE profile_id = ? AND lower(trim(title)) = lower(trim(?)) LIMIT 1',
+    "SELECT * FROM treatments WHERE profile_id = ? AND source_type != 'demo' AND lower(trim(title)) = lower(trim(?)) LIMIT 1",
     [profileId, title],
   );
 }
