@@ -1,7 +1,7 @@
 import { Directory, File, Paths, type DownloadTask } from 'expo-file-system';
 import { create } from 'zustand';
 
-import { ENGINE_NAME, llamaEngine, type EngineInfo } from '@/lib/ai/llama-engine';
+import { ENGINE_NAME, llamaEngine, type BenchMeasurement, type EngineInfo, type PrefixRequest } from '@/lib/ai/llama-engine';
 import type { CompletionRequest, CompletionResult, CompletionTimings } from '@/lib/ai/llm-types';
 import { ModelNotReadyError } from '@/lib/ai/llm-types';
 import {
@@ -47,6 +47,8 @@ interface Manifest {
   v: 1;
   selectedModelId: string;
   verified: Record<string, { sha256: string; sizeBytes: number; verifiedAt: string }>;
+  /** CPU threads for inference; null = llama.rn default. Device-level performance setting. */
+  threads?: number | null;
 }
 
 interface ModelStore {
@@ -61,6 +63,10 @@ interface ModelStore {
   activeJob: ModelJob | null;
   error: string | null;
   lastTest: TestRun | null;
+  threads: number | null;
+  lastBench: (BenchMeasurement & { at: string }) | null;
+  setThreads(threads: number | null): Promise<void>;
+  runBenchmark(): Promise<BenchMeasurement>;
 
   refresh(): Promise<void>;
   selectModel(modelId: string): Promise<void>;
@@ -73,6 +79,7 @@ interface ModelStore {
   unload(): Promise<void>;
   deleteModel(modelId: string): Promise<void>;
   complete(job: ModelJob, request: CompletionRequest): Promise<CompletionResult>;
+  prefill(request: PrefixRequest): Promise<void>;
   stop(): void;
   runTestPrompt(): Promise<TestRun>;
   clearError(): void;
@@ -119,6 +126,8 @@ export const useModelStore = create<ModelStore>()((set, get) => ({
   activeJob: null,
   error: null,
   lastTest: null,
+  threads: null,
+  lastBench: null,
 
   async refresh() {
     const manifest = await readManifest();
@@ -132,7 +141,28 @@ export const useModelStore = create<ModelStore>()((set, get) => ({
       files[spec.id] = { exists, sizeOnDisk: size, verified, verifiedAt: verified ? record!.verifiedAt : null };
     }
     const selected = getModelSpec(manifest.selectedModelId)?.id ?? DEFAULT_MODEL_ID;
-    set({ files, selectedModelId: selected, initialized: true });
+    set({ files, selectedModelId: selected, threads: manifest.threads ?? null, initialized: true });
+  },
+
+  async setThreads(threads) {
+    const manifest = await readManifest();
+    writeManifest({ ...manifest, threads });
+    set({ threads });
+    // Thread count is fixed when the context is created, so reload a loaded model.
+    if (get().loadState === 'ready') await get().load();
+  },
+
+  async runBenchmark() {
+    if (get().activeJob) throw new Error('The model is busy. Try again when the current task finishes.');
+    if (get().loadState !== 'ready') await get().load();
+    set({ activeJob: 'test' });
+    try {
+      const result = await llamaEngine.bench(128, 32);
+      set({ lastBench: { ...result, at: new Date().toISOString() } });
+      return result;
+    } finally {
+      set({ activeJob: null });
+    }
   },
 
   async selectModel(modelId) {
@@ -260,14 +290,21 @@ export const useModelStore = create<ModelStore>()((set, get) => ({
     const id = modelId ?? get().selectedModelId;
     const spec = getModelSpec(id);
     if (!spec) throw new Error('Unknown model.');
-    if (get().loadState === 'ready' && get().loadedModelId === id && llamaEngine.isLoaded) return get().engineInfo!;
+    if (
+      get().loadState === 'ready' &&
+      get().loadedModelId === id &&
+      llamaEngine.isLoaded &&
+      get().engineInfo?.threads === get().threads
+    ) {
+      return get().engineInfo!;
+    }
     if (!get().initialized) await get().refresh();
     if (!get().files[id]?.verified) {
       throw new ModelNotReadyError(`${spec.displayName} is not installed and verified yet. Download it from Settings → AI model.`);
     }
     set({ loadState: 'loading', loadProgress: 0, error: null });
     try {
-      const info = await llamaEngine.load(toNativePath(modelFile(spec).uri), spec.contextTokens, (p) =>
+      const info = await llamaEngine.load(toNativePath(modelFile(spec).uri), spec.contextTokens, get().threads, (p) =>
         set({ loadProgress: p }),
       );
       set({ loadState: 'ready', loadedModelId: id, engineInfo: info, loadProgress: 100 });
@@ -310,6 +347,16 @@ export const useModelStore = create<ModelStore>()((set, get) => ({
       return await llamaEngine.complete(request);
     } finally {
       set({ activeJob: null });
+    }
+  },
+
+  /** Best effort: warms the KV cache with a static prompt prefix while the model is idle. */
+  async prefill(request) {
+    if (get().loadState !== 'ready' || get().activeJob) return;
+    try {
+      await llamaEngine.prefill(request);
+    } catch {
+      // The next completion simply processes the whole prompt.
     }
   },
 

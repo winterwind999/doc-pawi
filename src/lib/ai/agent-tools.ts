@@ -24,21 +24,23 @@ const RECORD_TOOL_CATEGORIES = [
 ] as const;
 const TREATMENT_TOOL_KINDS = ['vaccination', 'medication_course', 'therapy', 'procedure', 'other'] as const;
 
+// Kept short on purpose: these definitions are part of every chat prompt, and on a phone CPU each
+// prompt token costs time. Confirmation and "only what the user said" rules live in the system prompt.
 export const TOOL_DEFINITIONS = [
   {
     type: 'function',
     function: {
       name: 'propose_medical_record',
       description:
-        'Suggest saving a health event the user just reported about themselves (doctor visit, diagnosis, lab or test result, procedure, allergy, imaging, or note). Do not use for vaccinations or treatment sessions. The user must confirm before anything is saved.',
+        'Suggest saving a doctor visit, diagnosis, lab or test result, procedure, allergy, imaging, or note the user reported about themselves. Not for vaccines or treatment sessions.',
       parameters: {
         type: 'object',
         properties: {
           category: { type: 'string', enum: [...RECORD_TOOL_CATEGORIES] },
-          title: { type: 'string', description: 'Short title, e.g. "Dental check-up"' },
-          event_date: { type: 'string', description: 'YYYY-MM-DD if the user stated or implied a date' },
-          facility: { type: 'string', description: 'Clinic or hospital, only if the user said it' },
-          summary: { type: 'string', description: 'One or two sentences using only what the user said' },
+          title: { type: 'string', description: 'e.g. "Dental check-up"' },
+          event_date: { type: 'string', description: 'YYYY-MM-DD' },
+          facility: { type: 'string' },
+          summary: { type: 'string' },
         },
         required: ['category', 'title'],
       },
@@ -48,19 +50,15 @@ export const TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'propose_treatment_event',
-      description:
-        'Suggest saving a vaccine dose, treatment session, or treatment visit the user reported (completed) or scheduled. The user must confirm before anything is saved.',
+      description: 'Suggest saving a vaccine dose or treatment session the user reported as done or scheduled.',
       parameters: {
         type: 'object',
         properties: {
-          treatment_name: {
-            type: 'string',
-            description: 'The vaccine series or treatment, e.g. "Hepatitis B vaccine series" or "Physical therapy – left knee"',
-          },
+          treatment_name: { type: 'string', description: 'e.g. "Hepatitis B vaccine series"' },
           treatment_type: { type: 'string', enum: [...TREATMENT_TOOL_KINDS] },
           event_title: { type: 'string', description: 'e.g. "Hepatitis B vaccine – dose 2"' },
           status: { type: 'string', enum: ['completed', 'scheduled'] },
-          date: { type: 'string', description: 'YYYY-MM-DD if the user stated or implied a date' },
+          date: { type: 'string', description: 'YYYY-MM-DD' },
           facility: { type: 'string' },
           notes: { type: 'string' },
         },

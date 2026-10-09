@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { ModelStatusCard } from '@/components/ModelStatusCard';
@@ -10,6 +10,8 @@ import { EmptyState, ErrorState, LoadingState, Screen, SectionHeader } from '@/c
 import { useLiveQuery } from '@/hooks/use-live-query';
 import { formatTimestamp } from '@/lib/dates';
 import { createConversation, deleteConversation, listConversations } from '@/lib/db/repositories/conversations';
+import { CHAT_PREFIX } from '@/lib/services/chat-service';
+import { useModelStore } from '@/stores/model-store';
 import { useUnlockedSession } from '@/stores/session-store';
 import { colors } from '@/theme/colors';
 
@@ -17,6 +19,15 @@ export default function ChatsScreen() {
   const { db, profileId } = useUnlockedSession();
   const chats = useLiveQuery((db, profileId) => listConversations(db, profileId));
   const [toDelete, setToDelete] = useState<string | null>(null);
+  const modelReady = useModelStore((s) => s.loadState === 'ready');
+  const activeJob = useModelStore((s) => s.activeJob);
+
+  // Opening Chats signals the user is about to ask something: warm the model's static instructions.
+  useFocusEffect(
+    useCallback(() => {
+      if (modelReady && !activeJob) void useModelStore.getState().prefill(CHAT_PREFIX);
+    }, [modelReady, activeJob]),
+  );
 
   const startNew = async () => {
     const conversation = await createConversation(db, profileId);

@@ -1,6 +1,7 @@
 import { MAX_TOOL_CALLS_PER_RESPONSE, TOOL_DEFINITIONS, validateToolCall } from '../ai/agent-tools';
+import type { PrefixRequest } from '../ai/llama-engine';
 import type { CompletionRequest, CompletionResult, ModelRunMetadata } from '../ai/llm-types';
-import { buildChatMessages } from '../ai/prompts';
+import { buildChatMessages, CHAT_SYSTEM_PROMPT } from '../ai/prompts';
 import { retrieveHealthContext } from '../ai/retrieval';
 import { asksAboutDoseChange, assessMessage } from '../ai/safety';
 import {
@@ -13,6 +14,19 @@ import { insertProposal } from '../db/repositories/proposals';
 import type { Db } from '../db/types';
 
 export type CompleteFn = (request: CompletionRequest) => Promise<CompletionResult>;
+
+/**
+ * The static start of every chat prompt (system prompt + tool definitions, no personal data).
+ * Prefilling it when a chat opens lets the first answer skip most of the prompt processing. The
+ * empty user turn only makes the template render a complete conversation; it is not reused.
+ */
+export const CHAT_PREFIX: PrefixRequest = {
+  messages: [
+    { role: 'system', content: CHAT_SYSTEM_PROMPT },
+    { role: 'user', content: '' },
+  ],
+  tools: TOOL_DEFINITIONS,
+};
 
 export function titleFromMessage(text: string) {
   const clean = text.replace(/\s+/g, ' ').trim();

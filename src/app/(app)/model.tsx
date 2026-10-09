@@ -7,9 +7,11 @@ import { Linking, Text, View } from 'react-native';
 import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ChoiceChips } from '@/components/ui/Choice';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { KeyValueRow, ProgressBar, Screen, SectionHeader } from '@/components/ui/Layout';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { describeTimings } from '@/lib/ai/format-text';
 import { formatBytes, MODEL_CATALOG, requiredFreeBytes, type ModelSpec } from '@/lib/ai/model-catalog';
 import { DocPawiNative } from '@/lib/native';
 import { useModelStore } from '@/stores/model-store';
@@ -158,7 +160,20 @@ export default function ModelScreen() {
   const store = useModelStore();
   const device = useMemo(() => DocPawiNative.getDeviceProfile(), []);
   const [testing, setTesting] = useState(false);
+  const [benching, setBenching] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
+
+  const runBench = async () => {
+    setBenching(true);
+    setTestError(null);
+    try {
+      await store.runBenchmark();
+    } catch (e) {
+      setTestError((e as Error).message);
+    } finally {
+      setBenching(false);
+    }
+  };
 
   useEffect(() => {
     void store.refresh();
@@ -211,13 +226,47 @@ export default function ModelScreen() {
             <KeyValueRow label="Model" value={info.modelDescription} />
             <KeyValueRow label="Parameters" value={`${(info.parameterCount / 1e9).toFixed(2)} B`} />
             <KeyValueRow label="Context window" value={`${info.contextTokens} tokens`} />
+            <KeyValueRow label="KV cache" value={`${info.kvCacheType} (8-bit)`} />
             <KeyValueRow label="CPU library" value={info.nativeLibrary ?? 'unknown'} />
+            <KeyValueRow label="Threads" value={info.threads ? String(info.threads) : 'Default (up to 4)'} />
             <KeyValueRow label="GPU" value={info.gpu ? 'Yes' : `No (CPU only)`} />
             <KeyValueRow label="Load time" value={`${(info.loadMs / 1000).toFixed(1)} s`} />
           </>
         ) : (
           <Text className="text-sm text-ink-muted">Load a model to see runtime details.</Text>
         )}
+      </Card>
+
+      <SectionHeader title="Performance" />
+      <Card className="gap-3">
+        <ChoiceChips
+          label="CPU threads"
+          options={[
+            { value: 'auto', label: 'Default (4)' },
+            ...[6, 8]
+              .filter((n) => !device || n <= device.cpuCores)
+              .map((n) => ({ value: String(n), label: `${n}` })),
+          ]}
+          value={store.threads ? String(store.threads) : 'auto'}
+          onChange={(v) => v && void store.setThreads(v === 'auto' ? null : Number(v))}
+        />
+        <Text className="text-xs leading-4 text-ink-muted">
+          More threads can speed up reading long prompts on phones with many efficiency cores. Changing this reloads the
+          model.
+        </Text>
+        <Button
+          label="Run llama.cpp benchmark"
+          icon="speedometer"
+          variant="outline"
+          loading={benching}
+          disabled={!store.files[store.selectedModelId]?.verified}
+          onPress={() => void runBench()}
+        />
+        {store.lastBench ? (
+          <Text className="text-sm text-ink">
+            {`${store.lastBench.threads} threads · prompt ${store.lastBench.promptTokens} tokens at ${store.lastBench.promptTokensPerSecond.toFixed(1)} tok/s · generation ${store.lastBench.generatedTokens} tokens at ${store.lastBench.generatedTokensPerSecond.toFixed(1)} tok/s`}
+          </Text>
+        ) : null}
       </Card>
 
       <SectionHeader title="Test the model" />
@@ -241,7 +290,7 @@ export default function ModelScreen() {
             </Text>
             {store.lastTest.timings ? (
               <Text className="text-xs text-ink-muted">
-                {`Prompt ${store.lastTest.timings.promptTokens} tokens at ${store.lastTest.timings.promptTokensPerSecond.toFixed(1)} tok/s · generated ${store.lastTest.timings.generatedTokens} tokens at ${store.lastTest.timings.generatedTokensPerSecond.toFixed(1)} tok/s`}
+                {describeTimings(store.lastTest.timings)}
               </Text>
             ) : null}
           </View>

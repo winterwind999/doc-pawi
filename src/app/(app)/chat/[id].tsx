@@ -15,7 +15,7 @@ import type { MessageRow, RecordProposalRow } from '@/lib/db/models';
 import { getConversation, listMessages } from '@/lib/db/repositories/conversations';
 import { listDocuments } from '@/lib/db/repositories/documents';
 import { listProposalsForConversation } from '@/lib/db/repositories/proposals';
-import { sendChatMessage } from '@/lib/services/chat-service';
+import { CHAT_PREFIX, sendChatMessage } from '@/lib/services/chat-service';
 import { useChatStream } from '@/stores/chat-stream-store';
 import { currentModelMetadata, useModelStore } from '@/stores/model-store';
 import { useUnlockedSession } from '@/stores/session-store';
@@ -37,6 +37,7 @@ export default function ChatScreen() {
   const [sendError, setSendError] = useState<string | null>(null);
   const listRef = useRef<FlatList<MessageRow>>(null);
   const activeJob = useModelStore((s) => s.activeJob);
+  const modelReady = useModelStore((s) => s.loadState === 'ready');
   const streamConversation = useChatStream((s) => s.conversationId);
   const generatingHere = streamConversation === id;
   const modelStatus = useModelStatus();
@@ -65,6 +66,12 @@ export default function ChatScreen() {
   useEffect(() => {
     if (messages.length) setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
   }, [messages.length]);
+
+  // While the user reads or types, evaluate the static instructions so the answer starts sooner.
+  // A no-op when the model's cache already holds them (for example right after a previous answer).
+  useEffect(() => {
+    if (modelReady && !activeJob) void useModelStore.getState().prefill(CHAT_PREFIX);
+  }, [modelReady, activeJob]);
 
   const send = async (text: string) => {
     const question = text.trim();
