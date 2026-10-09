@@ -1,21 +1,37 @@
-The MIT License (MIT)
+Doc Pawi — Proprietary Software License
 
-Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
+Copyright (c) 2026 winterwind999. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software, including its source code, documentation, designs, the Doc Pawi name, the
+Doc Pawi mascot artwork, and other assets (together, the "Software"), is the proprietary and
+confidential property of the copyright holder.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+No license or other right is granted to any person to use, copy, modify, merge, publish,
+distribute, sublicense, sell, rent, or create derivative works of the Software, in whole or in
+part, by any means, except with the prior written permission of the copyright holder. Access to
+the source code does not grant any such permission.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The Software provides health information and personal record keeping. It is not a medical
+device and is not a substitute for advice, diagnosis, or treatment from a licensed healthcare
+professional.
+
+Third-party components
+
+The Software uses third-party components that remain under their own licenses and are not
+covered by this license. Nothing in this license limits the rights those licenses grant.
+These include, among others:
+
+- React Native, Expo SDK modules, and the other npm packages listed in package.json
+  (mostly MIT; see each package's own license file)
+- llama.cpp and llama.rn (MIT)
+- Qwen3 language model weights by the Qwen team, Alibaba Cloud, in GGUF form from ggml-org
+  (Apache-2.0), downloaded by the user at run time and not distributed with the Software
+- Google ML Kit Text Recognition (ML Kit Terms of Service)
+- Leaflet (BSD-2-Clause) and map data from OpenStreetMap contributors (ODbL), used by the
+  in-app map

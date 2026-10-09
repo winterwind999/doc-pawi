@@ -2,6 +2,7 @@
   "name": "doc-pawi",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "license": "UNLICENSED",
   "dependencies": {
     "@expo/ui": "~57.0.22",
     "@expo/vector-icons": "^15.0.2",
