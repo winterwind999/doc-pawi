@@ -41,7 +41,7 @@ export default function BodyStep() {
 
   return (
     <OnboardingStep
-      step={5}
+      step={4}
       title="Height and weight"
       description="Optional. Stored with the units you choose; Doc Pawi does not convert or interpret them clinically."
       footer={

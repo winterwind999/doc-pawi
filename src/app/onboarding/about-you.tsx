@@ -26,7 +26,7 @@ export default function AboutYouStep() {
 
   return (
     <OnboardingStep
-      step={3}
+      step={2}
       title="About you"
       description="This helps Doc Pawi personalize your dashboard. Sex is optional and only used as context for your own questions."
       footer={<Button label="Continue" icon="arrow-right" onPress={next} />}

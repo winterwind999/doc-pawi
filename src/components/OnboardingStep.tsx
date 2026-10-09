@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProgressBar } from './ui/Layout';
 
-export const ONBOARDING_STEPS = 7;
+export const ONBOARDING_STEPS = 6;
 
 /** Shared scaffold for first-launch steps: progress, title, explanation, content, and footer actions. */
 export function OnboardingStep({

@@ -22,7 +22,7 @@ const POINTS: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'wifi',
     title: 'When the internet is used',
-    text: 'Only for Google sign-in (if you choose it), the one-time AI model download from Hugging Face, and maps you open yourself. Google’s on-device text recognition may send anonymous usage statistics (never your images or text).',
+    text: 'There are no accounts. The internet is used only for the one-time AI model download from Hugging Face and for maps you open yourself. Google’s on-device text recognition may send anonymous usage statistics (never your images or text).',
   },
   {
     icon: 'doctor',
@@ -41,7 +41,7 @@ export default function PrivacyStep() {
   const update = useOnboardingStore((s) => s.update);
   return (
     <OnboardingStep
-      step={6}
+      step={5}
       title="Privacy and medical limits"
       description="Please read how Doc Pawi handles your information and what it can and cannot do."
       footer={

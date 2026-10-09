@@ -25,7 +25,6 @@ export default function SettingsScreen() {
   const settings = useSession((s) => s.settings);
   const biometricEnabled = useSession((s) => s.biometricEnabled);
   const cipherVersion = useSession((s) => s.cipherVersion);
-  const profiles = useSession((s) => s.profiles);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [permission, setPermission] = useState<ReminderPermission | null>(null);
   const [bioAvailable, setBioAvailable] = useState(false);
@@ -53,8 +52,6 @@ export default function SettingsScreen() {
       setBusy(null);
     }
   };
-
-  const currentProfile = profiles.find((p) => p.id === profileId);
 
   return (
     <Screen edges={['bottom']}>
@@ -174,7 +171,7 @@ export default function SettingsScreen() {
       <Card className="gap-1">
         <KeyValueRow label="App version" value={Constants.expoConfig?.version ?? '—'} />
         <KeyValueRow label="Database encryption" value={cipherVersion ? `SQLCipher ${cipherVersion}` : 'Unknown'} />
-        <KeyValueRow label="Profile" value={currentProfile?.authProvider === 'google' ? `Google · ${currentProfile.email ?? ''}` : 'Local-only'} />
+        <KeyValueRow label="Profile" value="Local-only" />
       </Card>
 
       <SectionHeader title="Account and data" />

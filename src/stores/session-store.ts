@@ -4,7 +4,6 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import { llamaEngine } from '@/lib/ai/llama-engine';
-import { signOutOfGoogle } from '@/lib/auth/google';
 import { nowIso } from '@/lib/dates';
 import type { ProfileRow } from '@/lib/db/models';
 import { deleteProfileDatabase, openProfileDatabase } from '@/lib/db/open';
@@ -41,8 +40,8 @@ import { useModelStore } from './model-store';
  *   booting → signed_out (welcome / onboarding / profile picker)
  *           → locked (PIN or biometric unlock for one profile)
  *           → unlocked (encrypted database open)
- * Locking closes the database and clears in-memory health data; signing out additionally ends
- * the Google session and returns to the welcome screen. Neither deletes data.
+ * Locking closes the database and clears in-memory health data; signing out additionally returns
+ * to the welcome screen (profile picker). Neither deletes data. Profiles are local-only.
  */
 export type SessionStatus = 'booting' | 'signed_out' | 'locked' | 'unlocked';
 
@@ -208,38 +207,31 @@ export const useSession = create<SessionStore>()((set, get) => {
     },
 
     async signOut() {
-      const profileId = get().activeProfileId;
-      const wasGoogle = get().profiles.find((p) => p.id === profileId)?.authProvider === 'google';
       set({ status: 'signed_out' });
       await closeSession();
       await setSignedInProfile(null);
-      if (wasGoogle) await signOutOfGoogle();
       const registry = await readRegistry();
       set({ profiles: registry.profiles, activeProfileId: null });
     },
 
     async createProfile(draft, input) {
-      if (!draft.pinRecord || !draft.authProvider) throw new Error('Onboarding is incomplete.');
+      if (!draft.pinRecord) throw new Error('Onboarding is incomplete.');
       const profileId = newId();
       let db: Db | null = null;
       try {
         const key = await createDatabaseKey(profileId);
         const opened = await openProfileDatabase(profileId, key, bumpData);
         db = opened.db;
-        await insertProfile(db, {
-          id: profileId,
-          authProvider: draft.authProvider,
-          authSubject: draft.authSubject,
-          input,
-        });
+        // Profiles are local-only: no account, nothing identifies the profile outside this phone.
+        await insertProfile(db, { id: profileId, authProvider: 'local', authSubject: null, input });
         await savePinRecord(profileId, draft.pinRecord);
         await addProfileToRegistry(
           {
             id: profileId,
             displayName: input.display_name,
             email: input.email,
-            authProvider: draft.authProvider,
-            authSubject: draft.authSubject,
+            authProvider: 'local',
+            authSubject: null,
             createdAt: nowIso(),
           },
           true,

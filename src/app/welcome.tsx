@@ -14,7 +14,7 @@ export default function WelcomeScreen() {
 
   const startOnboarding = () => {
     useOnboardingStore.getState().reset();
-    router.push('/onboarding/sign-in');
+    router.push('/onboarding/pin');
   };
 
   return (
@@ -44,7 +44,7 @@ export default function WelcomeScreen() {
                   key={p.id}
                   icon="account-lock-outline"
                   title={p.displayName}
-                  subtitle={p.authProvider === 'google' ? (p.email ?? 'Google account') : 'Local-only profile'}
+                  subtitle="Local-only profile"
                   accessibilityHint="Unlock this profile with its PIN"
                   onPress={() => void useSession.getState().chooseProfile(p.id)}
                 />

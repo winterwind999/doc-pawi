@@ -30,7 +30,7 @@ export default function BirthDateStep() {
 
   return (
     <OnboardingStep
-      step={4}
+      step={3}
       title="Date of birth"
       description="Used to show your age when you ask about your own health. You can skip this."
       footer={

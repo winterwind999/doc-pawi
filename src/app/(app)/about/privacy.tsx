@@ -25,7 +25,7 @@ export default function PrivacyScreen() {
         {
           heading: 'When the network is used',
           body: [
-            'Google sign-in (only if you choose it): Google receives a standard sign-in request and returns your name, email, and account ID, which are stored locally to identify your profile. No health data is sent.',
+            'There are no accounts or sign-in: each profile exists only on this phone.',
             'AI model download: the model file is downloaded once from Hugging Face. The request contains no personal data.',
             'Maps and phone links: only when you tap “Open in Maps”, a call, or an email button, the address, number, or email is handed to another app.',
             'Google ML Kit may send anonymous usage and performance metrics (for example, API latency and device model) to Google when the phone is online. It does not send your images or recognized text.',

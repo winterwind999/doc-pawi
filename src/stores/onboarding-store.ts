@@ -1,16 +1,14 @@
 import { create } from 'zustand';
 
-import type { AuthProvider, HeightUnit, Sex, WeightUnit } from '@/lib/db/models';
+import type { HeightUnit, Sex, WeightUnit } from '@/lib/db/models';
 import type { PinRecord } from '@/lib/security/pin';
 
 /**
  * First-launch answers held in memory only. Nothing is written to disk until the
  * "Set up secure storage" step, so abandoning onboarding leaves no partial profile behind.
+ * Profiles are local-only: there is no account to sign in to.
  */
 export interface OnboardingDraft {
-  authProvider: AuthProvider | null;
-  authSubject: string | null;
-  email: string | null;
   displayName: string;
   pinRecord: PinRecord | null;
   sex: Sex | null;
@@ -23,9 +21,6 @@ export interface OnboardingDraft {
 }
 
 const EMPTY: OnboardingDraft = {
-  authProvider: null,
-  authSubject: null,
-  email: null,
   displayName: '',
   pinRecord: null,
   sex: null,

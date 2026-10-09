@@ -18,7 +18,6 @@ import { useSession } from '@/stores/session-store';
 
 export default function ProfileScreen() {
   const profile = useSession((s) => s.profile)!;
-  const registry = useSession((s) => s.profiles.find((p) => p.id === s.activeProfileId));
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(profile.display_name);
   const [sex, setSex] = useState<Sex | null>(profile.sex);
@@ -74,7 +73,7 @@ export default function ProfileScreen() {
         <>
           <Card className="gap-1">
             <KeyValueRow label="Name" value={profile.display_name} />
-            <KeyValueRow label="Account" value={registry?.authProvider === 'google' ? `Google (${profile.email ?? ''})` : 'Local-only profile'} />
+            <KeyValueRow label="Account" value="Local-only profile (no account)" />
             <KeyValueRow label="Sex" value={profile.sex ? SEX_LABELS[profile.sex] : 'Not recorded'} />
             <KeyValueRow label="Date of birth" value={profile.birth_date ? `${formatDate(profile.birth_date)}${age !== null ? ` (age ${age})` : ''}` : 'Not recorded'} />
             <KeyValueRow label="Height" value={formatHeight(profile.height_value, profile.height_unit)} />

@@ -54,9 +54,9 @@ export default function PinStep() {
 
   return (
     <OnboardingStep
-      step={2}
+      step={1}
       title={first ? 'Confirm your PIN' : 'Create a 4-digit PIN'}
-      description="You will use this PIN to unlock your health vault on this phone. After 5 wrong attempts, unlocking is paused for an increasing time."
+      description="Doc Pawi has no accounts: your profile exists only on this phone and works offline. You will use this PIN to unlock it. If you forget the PIN, the data cannot be recovered. After 5 wrong attempts, unlocking is paused for an increasing time."
     >
       <View className="items-center gap-6 py-4">
         <PinDots length={PIN_LENGTH} filled={pin.length} error={!!error} />

@@ -26,7 +26,7 @@ export default function SetupStep() {
     setError(null);
     const input = profileInputSchema.safeParse({
       display_name: draft.displayName,
-      email: draft.email,
+      email: null,
       sex: draft.sex,
       birth_date: draft.birthDate,
       height_value: draft.heightValue,
@@ -34,7 +34,7 @@ export default function SetupStep() {
       weight_value: draft.weightValue,
       weight_unit: draft.weightValue != null ? draft.weightUnit : null,
     });
-    if (!input.success || !draft.pinRecord || !draft.authProvider) {
+    if (!input.success || !draft.pinRecord) {
       setState('error');
       setError('Some onboarding answers are missing or invalid. Go back and review them.');
       return;
@@ -53,7 +53,7 @@ export default function SetupStep() {
 
   return (
     <OnboardingStep
-      step={7}
+      step={6}
       title="Set up secure storage"
       description="Doc Pawi will now create your encrypted health vault on this phone. This works offline."
       footer={

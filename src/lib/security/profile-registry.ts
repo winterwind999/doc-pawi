@@ -12,8 +12,9 @@ export interface RegistryProfile {
   id: string;
   displayName: string;
   email: string | null;
+  /** Always `'local'`: profiles exist only on this phone (kept for registry compatibility). */
   authProvider: AuthProvider;
-  /** Google account subject (`user.id`) for Google profiles; null for local-only profiles. */
+  /** Always null for local-only profiles (kept for registry compatibility). */
   authSubject: string | null;
   createdAt: string;
 }
@@ -79,10 +80,6 @@ export async function setSignedInProfile(profileId: string | null) {
   const registry = await readRegistry();
   registry.signedInProfileId = profileId;
   await writeRegistry(registry);
-}
-
-export function findProfileBySubject(registry: Registry, provider: AuthProvider, subject: string) {
-  return registry.profiles.find((p) => p.authProvider === provider && p.authSubject === subject) ?? null;
 }
 
 const toHex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
