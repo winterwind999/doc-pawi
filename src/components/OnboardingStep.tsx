@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ProgressBar } from './ui/Layout';
+import { ProgressBar, StickyFooter } from './ui/Layout';
 
 export const ONBOARDING_STEPS = 6;
 
@@ -22,8 +23,13 @@ export function OnboardingStep({
 }) {
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-surface-muted">
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView className="flex-1" contentContainerClassName="gap-5 p-5 pb-8" keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={footer ? 96 : 24}
+      >
+        <View className="gap-5">
           <View className="gap-2">
             <Text className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Step {step} of {ONBOARDING_STEPS}
@@ -37,9 +43,9 @@ export function OnboardingStep({
             {description ? <Text className="text-base leading-6 text-ink-muted">{description}</Text> : null}
           </View>
           {children}
-        </ScrollView>
-        {footer ? <View className="gap-2 border-t border-line bg-surface p-4">{footer}</View> : null}
-      </KeyboardAvoidingView>
+        </View>
+      </KeyboardAwareScrollView>
+      {footer ? <StickyFooter bottomEdge>{footer}</StickyFooter> : null}
     </SafeAreaView>
   );
 }

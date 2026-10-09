@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
+import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 
 import { colors } from '@/theme/colors';
 
@@ -10,8 +11,12 @@ import { Icon, type IconName } from './Icon';
 const mascot = require('@/assets/images/doc-pawi-mascot.png');
 
 /**
- * Standard screen container: safe area, muted background, keyboard avoidance, and an optional
+ * Standard screen container: safe area, muted background, keyboard handling, and an optional
  * scroll view. Tab and stack screens with native headers pass `edges={['bottom']}` or `[]`.
+ *
+ * Android 15+ draws apps edge to edge, so the window no longer shrinks for the keyboard;
+ * react-native-keyboard-controller scrolls the focused field into view and keeps the footer
+ * (e.g. a Save button) on top of the keyboard.
  */
 export function Screen({
   children,
@@ -30,21 +35,32 @@ export function Screen({
 }) {
   return (
     <SafeAreaView edges={edges} className={`flex-1 bg-surface-muted ${className}`}>
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {scroll ? (
-          <ScrollView
-            className="flex-1"
-            contentContainerClassName={`gap-4 p-4 pb-10 ${contentClassName}`}
-            keyboardShouldPersistTaps="handled"
-          >
-            {children}
-          </ScrollView>
-        ) : (
-          <View className={`flex-1 ${contentClassName}`}>{children}</View>
-        )}
-        {footer ? <View className="border-t border-line bg-surface p-4">{footer}</View> : null}
-      </KeyboardAvoidingView>
+      {scroll ? (
+        <KeyboardAwareScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={footer ? 96 : 24}
+        >
+          <View className={`gap-4 ${contentClassName}`}>{children}</View>
+        </KeyboardAwareScrollView>
+      ) : (
+        <View className={`flex-1 ${contentClassName}`}>{children}</View>
+      )}
+      {footer ? <StickyFooter bottomEdge={edges.includes('bottom')}>{footer}</StickyFooter> : null}
     </SafeAreaView>
+  );
+}
+
+/** Footer bar that rides on top of the keyboard while it is open. */
+export function StickyFooter({ children, bottomEdge }: { children: ReactNode; bottomEdge: boolean }) {
+  const insets = useSafeAreaInsets();
+  // Above the bottom safe area the keyboard already covers that inset, so rise by the rest only.
+  const covered = bottomEdge ? insets.bottom : 0;
+  return (
+    <KeyboardStickyView offset={{ closed: 0, opened: covered }}>
+      <View className="gap-2 border-t border-line bg-surface p-4">{children}</View>
+    </KeyboardStickyView>
   );
 }
 

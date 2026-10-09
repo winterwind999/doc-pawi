@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { installNotificationHandler } from '@/lib/notifications/reminders';
 import { useModelStore } from '@/stores/model-store';
@@ -34,7 +35,8 @@ export default function RootLayout() {
 
   const signedOut = status === 'signed_out' || status === 'booting';
   return (
-    <>
+    // Keyboard events for the keyboard-aware views (edge-to-edge Android does not resize the window).
+    <KeyboardProvider>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surfaceMuted } }}>
         <Stack.Protected guard={status === 'unlocked'}>
@@ -48,6 +50,6 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" />
         </Stack.Protected>
       </Stack>
-    </>
+    </KeyboardProvider>
   );
 }
