@@ -21,6 +21,8 @@ export interface TextFieldProps {
   testID?: string;
   onSubmitEditing?: () => void;
   returnKeyType?: TextInputProps['returnKeyType'];
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 export function TextField({
@@ -41,6 +43,8 @@ export function TextField({
   testID,
   onSubmitEditing,
   returnKeyType,
+  onFocus,
+  onBlur,
 }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
   const border = error ? 'border-coral-500' : focused ? 'border-primary-500' : 'border-line-strong';
@@ -62,8 +66,14 @@ export function TextField({
         autoComplete={autoComplete}
         maxLength={maxLength}
         editable={editable}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onFocus={() => {
+          setFocused(true);
+          onFocus?.();
+        }}
+        onBlur={() => {
+          setFocused(false);
+          onBlur?.();
+        }}
         onSubmitEditing={onSubmitEditing}
         returnKeyType={returnKeyType}
         accessibilityLabel={label}

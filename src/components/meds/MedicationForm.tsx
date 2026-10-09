@@ -55,7 +55,9 @@ export function MedicationForm({ existing }: { existing?: MedicationWithSchedule
     try {
       const med = existing ? await updateMedication(db, existing.id, parsed.data) : await createMedication(db, { profileId, input: parsed.data, sourceType: 'manual' });
       await reconcileReminders(db, profileId, settings).catch(() => undefined);
-      router.replace({ pathname: '/meds/[id]', params: { id: med.id } });
+      // After editing, go back to the medication screen the user came from (no duplicate in the stack).
+      if (existing) router.back();
+      else router.replace({ pathname: '/meds/[id]', params: { id: med.id } });
     } catch (e) {
       setFailure((e as Error).message.includes('UNIQUE') ? 'Each dose time must be different.' : (e as Error).message);
     } finally {

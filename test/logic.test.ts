@@ -12,6 +12,7 @@ import { asksAboutDoseChange, assessMessage } from '@/lib/ai/safety';
 import { addDays, ageOn, formatTimeOfDay, greetingFor, isValidIsoDate, relativeDay } from '@/lib/dates';
 import type { ActivitySummary } from '@/lib/db/repositories/stats';
 import { buildHomeMessage } from '@/lib/home-message';
+import { suggestSpecialties } from '@/lib/specialties';
 import { FREE_ATTEMPTS, INITIAL_THROTTLE, lockoutMsAfter, registerFailure, remainingLockMs } from '@/lib/security/throttle';
 
 const OCR_TEXT = `BAYANIHAN DIAGNOSTIC LABORATORY (FICTIONAL)
@@ -244,5 +245,20 @@ describe('readable dates in model text', () => {
 
   it('applies to chat answers', () => {
     expect(formatModelText('Completed on 2026-10-01.')).toEqual([[{ text: 'Completed on Oct 1, 2026.', bold: false }]]);
+  });
+});
+describe('specialty suggestions', () => {
+  it('offers popular choices before typing', () => {
+    expect(suggestSpecialties('')).toContain('Internal Medicine');
+  });
+
+  it('puts names that start with the text first, then names that contain it', () => {
+    expect(suggestSpecialties('ped')[0]).toBe('Pediatrics');
+    expect(suggestSpecialties('ent')).toContain('Otorhinolaryngology (ENT)');
+    expect(suggestSpecialties('surg')).toEqual(expect.arrayContaining(['General Surgery', 'Neurosurgery']));
+  });
+
+  it('stops suggesting once the text matches exactly', () => {
+    expect(suggestSpecialties('Cardiology')).not.toContain('Cardiology');
   });
 });
