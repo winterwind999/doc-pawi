@@ -15,6 +15,7 @@ import { ErrorState, KeyValueRow, LoadingState, Screen, SectionHeader } from '@/
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { TextField } from '@/components/ui/TextField';
 import { useLiveQuery } from '@/hooks/use-live-query';
+import { checkSummaryConsistency } from '@/lib/ai/extraction';
 import { formatBytes } from '@/lib/ai/model-catalog';
 import { formatTimestamp } from '@/lib/dates';
 import { RECORD_CATEGORIES, type MedicalDocumentRow } from '@/lib/db/models';
@@ -103,6 +104,8 @@ function ReviewForm({ proposalId, initial, docText }: { proposalId: string; init
   const r = payload.record;
   const labs = ((r.structured_data.lab_results as LabRow[] | undefined) ?? []).slice();
   const unverified = new Set(payload.unverified_fields);
+  // Re-checked as the user edits, so the warning clears once the summary is corrected.
+  const summaryWarnings = checkSummaryConsistency(r.summary ?? '', labs);
   const set = (patch: Partial<RecordProposalPayload['record']>) => setPayload({ ...payload, record: { ...r, ...patch } });
   const removeLab = (i: number) => {
     const next = labs.filter((_, idx) => idx !== i);
@@ -161,7 +164,19 @@ function ReviewForm({ proposalId, initial, docText }: { proposalId: string; init
         onChangeText={(v) => set({ facility: v || null })}
         error={errors.facility}
       />
-      <TextField label="Summary (AI-generated — edit as needed)" value={r.summary ?? ''} onChangeText={(v) => set({ summary: v || null })} multiline error={errors.summary} />
+      <TextField
+        label={`Summary (AI-generated — ${summaryWarnings.length ? 'check before saving' : 'edit as needed'})`}
+        value={r.summary ?? ''}
+        onChangeText={(v) => set({ summary: v || null })}
+        multiline
+        error={errors.summary}
+      />
+      {summaryWarnings.map((w) => (
+        <View key={w} className="flex-row gap-2 rounded-xl bg-sand-50 p-2.5">
+          <Icon name="alert-outline" size={16} color={colors.sand700} />
+          <Text className="flex-1 text-xs leading-4 text-sand-700">{w}</Text>
+        </View>
+      ))}
       {labs.length ? (
         <View className="gap-2">
           <Text className="text-sm font-semibold text-ink">Extracted values</Text>
@@ -228,6 +243,9 @@ export default function DocumentScreen() {
   const pending = data.data?.proposals.find((p) => p.status === 'pending');
   const confirmed = data.data?.proposals.find((p) => p.status === 'confirmed');
   const pendingPayload = pending ? readProposalPayload(pending) : null;
+  const reviewLabs =
+    pendingPayload?.kind === 'medical_record' ? ((pendingPayload.record.structured_data.lab_results as LabRow[] | undefined) ?? []) : [];
+  const summaryWarnings = doc.summary ? checkSummaryConsistency(doc.summary, reviewLabs) : [];
 
   return (
     <Screen edges={['bottom']}>
@@ -288,6 +306,11 @@ export default function DocumentScreen() {
               {doc.summary}
             </Text>
             <Text className="text-xs text-ocean-600">Generated on this phone by the local model. May contain errors — not medical advice.</Text>
+            {summaryWarnings.map((w) => (
+              <Text key={w} className="text-xs font-semibold text-sand-700">
+                {w}
+              </Text>
+            ))}
           </Card>
         </>
       ) : null}

@@ -169,6 +169,40 @@ export function checkGrounding(extraction: Extraction, sourceText: string): Grou
   return { ungrounded, checked };
 }
 
+const ABNORMAL_WORDS = /\b(high|higher|elevated|raised|increased|low|lower|decreased|reduced|abnormal)\b/;
+const NORMAL_WORD = /\bnormal\b/;
+
+/**
+ * The summary is free text written by the model, so it is not word-matched like the extracted
+ * values. This flags clauses that call a test abnormal when the document does not mark it, or
+ * normal when it does (seen on device: "elevated creatinine" for an unflagged 88 umol/L).
+ */
+export function checkSummaryConsistency(summary: string, labResults: readonly { test: string; flag?: string | null }[]): string[] {
+  if (!summary.trim() || !labResults.length) return [];
+  const clauses = summary
+    .split(/[,.;:()]|\b(?:and|but|while|whereas|with)\b/i)
+    .map(normalizeForMatch)
+    .filter(Boolean);
+  const warnings: string[] = [];
+  for (const lab of labResults) {
+    const name = normalizeForMatch(lab.test);
+    if (!name) continue;
+    const marked = Boolean(lab.flag) && lab.flag !== 'normal';
+    for (const clause of clauses) {
+      if (!clause.includes(name)) continue;
+      if (ABNORMAL_WORDS.test(clause) && !marked) {
+        warnings.push(`The summary describes ${lab.test} as abnormal, but the document does not mark it.`);
+        break;
+      }
+      if (!ABNORMAL_WORDS.test(clause) && NORMAL_WORD.test(clause) && marked) {
+        warnings.push(`The summary calls ${lab.test} normal, but the document marks it ${lab.flag}.`);
+        break;
+      }
+    }
+  }
+  return warnings;
+}
+
 const CATEGORY_FOR_TYPE: Record<(typeof DOCUMENT_TYPES)[number], RecordCategory> = {
   lab_result: 'lab_result',
   prescription: 'prescription',
@@ -197,6 +231,8 @@ export function extractionToProposal(
     eventDate = null;
   }
   const keepLab = extraction.lab_results.filter((l) => l.test && l.value);
+  const summaryWarnings = checkSummaryConsistency(extraction.summary, keepLab);
+  if (summaryWarnings.length) unverified.add('summary');
   return {
     kind: 'medical_record',
     record: {
@@ -215,7 +251,7 @@ export function extractionToProposal(
       },
     },
     unverified_fields: [...unverified],
-    warnings: [],
+    warnings: summaryWarnings,
   };
 }
 

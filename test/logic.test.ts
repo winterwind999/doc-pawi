@@ -1,4 +1,12 @@
-import { checkGrounding, extractionSchema, extractionToProposal, isGrounded, normalizeForMatch, parseExtraction } from '@/lib/ai/extraction';
+import {
+  checkGrounding,
+  checkSummaryConsistency,
+  extractionSchema,
+  extractionToProposal,
+  isGrounded,
+  normalizeForMatch,
+  parseExtraction,
+} from '@/lib/ai/extraction';
 import { describeTimings, formatModelText } from '@/lib/ai/format-text';
 import { asksAboutDoseChange, assessMessage } from '@/lib/ai/safety';
 import { addDays, ageOn, formatTimeOfDay, greetingFor, isValidIsoDate, relativeDay } from '@/lib/dates';
@@ -182,5 +190,48 @@ describe('completion timing summary', () => {
     expect(describeTimings({ ...base, promptTokens: 1, promptMs: 0, promptTokensPerSecond: 0 })).toBe(
       'Prompt was already in the model cache · wrote 97 tokens at 3.0 tok/s',
     );
+  });
+});
+describe('summary consistency check', () => {
+  const labs = [
+    { test: 'Hemoglobin', flag: '' },
+    { test: 'Hematocrit', flag: '' },
+    { test: 'WBC Count', flag: 'high' },
+    { test: 'Platelet count', flag: '' },
+    { test: 'Fasting glucose', flag: 'high' },
+    { test: 'Total cholesterol', flag: 'high' },
+    { test: 'Creatinine', flag: '' },
+  ];
+
+  it('flags an unmarked test that the summary calls abnormal (seen on the test phone)', () => {
+    const summary =
+      'The complete blood count shows normal Hemoglobin and Hematocrit, but high WBC count, normal Platelet count. Blood chemistry shows high fasting glucose, high total cholesterol, and elevated creatinine. Clinical correlation is noted.';
+    expect(checkSummaryConsistency(summary, labs)).toEqual([
+      'The summary describes Creatinine as abnormal, but the document does not mark it.',
+    ]);
+  });
+
+  it('flags a marked test that the summary calls normal', () => {
+    expect(checkSummaryConsistency('Fasting glucose is normal.', labs)).toEqual([
+      'The summary calls Fasting glucose normal, but the document marks it high.',
+    ]);
+  });
+
+  it('accepts a summary that agrees with the document flags', () => {
+    expect(
+      checkSummaryConsistency('WBC count, fasting glucose and total cholesterol are marked high; creatinine is within range.', labs),
+    ).toEqual([]);
+  });
+
+  it('marks the summary for review in the proposal', () => {
+    const extraction = extractionSchema.parse({
+      document_type: 'lab_result',
+      title: 'Lab report',
+      summary: 'Blood chemistry shows elevated creatinine.',
+      lab_results: [{ test: 'Creatinine', value: '88', unit: 'umol/L', reference_range: '62 - 106', flag: '' }],
+    });
+    const payload = extractionToProposal(extraction, { ungrounded: [], checked: 4 }, 'Doc', '2026-10-10');
+    expect(payload.unverified_fields).toContain('summary');
+    expect(payload.warnings).toHaveLength(1);
   });
 });
