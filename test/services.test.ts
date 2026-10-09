@@ -124,6 +124,46 @@ describe('chat orchestration', () => {
     expect(JSON.parse(assistant.model_metadata!).sources[0]).toMatchObject({ type: 'document', label: 'lab.png' });
   });
 
+  it('gives the model the dates the user meant and flags a suggestion on another day', async () => {
+    const db = await openTestDbWithProfile();
+    const c = await createConversation(db, PROFILE_ID);
+    const dose = (eventTitle: string, date: string) => ({
+      name: 'propose_treatment_event',
+      arguments: JSON.stringify({
+        treatment_name: 'Rabies vaccine',
+        treatment_type: 'vaccination',
+        event_title: eventTitle,
+        status: 'completed',
+        date,
+      }),
+    });
+    let prompt = '';
+    await sendChatMessage({
+      db,
+      profileId: PROFILE_ID,
+      conversationId: c.id,
+      text: 'last week Monday i also had my first rabies shot and my 2nd was on thursday',
+      model: MODEL,
+      // Saturday, Oct 10, 2026, 4:48 AM — when the problem was reported.
+      now: new Date(2026, 9, 10, 4, 48),
+      complete: scripted({ text: 'Two suggestions.', toolCalls: [dose('Dose 1', '2026-09-28'), dose('Dose 2', '2026-10-04')] }, (r) => {
+        prompt = r.messages[r.messages.length - 1].content;
+      }),
+    });
+    expect(prompt).toContain('"last week Monday" = Monday, 2026-09-28');
+    expect(prompt).toContain('"thursday" = Thursday, 2026-10-01');
+    const flagged = (await listProposalsForConversation(db, c.id)).map((p) => {
+      const payload = JSON.parse(p.payload) as { warnings: string[]; event: { title: string } };
+      return [payload.event.title, payload.warnings.some((w) => w.startsWith('Check the date'))];
+    });
+    expect(flagged).toEqual(
+      expect.arrayContaining([
+        ['Dose 1', false],
+        ['Dose 2', true],
+      ]),
+    );
+  });
+
   it('keeps partial text when stopped and reports model errors honestly', async () => {
     const db = await openTestDbWithProfile();
     const c = await createConversation(db, PROFILE_ID);

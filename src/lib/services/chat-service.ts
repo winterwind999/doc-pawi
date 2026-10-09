@@ -1,7 +1,8 @@
-import { MAX_TOOL_CALLS_PER_RESPONSE, TOOL_DEFINITIONS, validateToolCall } from '../ai/agent-tools';
+import { MAX_TOOL_CALLS_PER_RESPONSE, TOOL_DEFINITIONS, validateToolCall, type ToolCallOutcome } from '../ai/agent-tools';
 import type { PrefixRequest } from '../ai/llama-engine';
 import type { CompletionRequest, CompletionResult, ModelRunMetadata } from '../ai/llm-types';
 import { buildChatMessages, CHAT_SYSTEM_PROMPT } from '../ai/prompts';
+import { checkSuggestedDate, describeResolvedDates, resolveRelativeDates, type ResolvedDate } from '../ai/relative-dates';
 import { retrieveHealthContext } from '../ai/retrieval';
 import { asksAboutDoseChange, assessMessage } from '../ai/safety';
 import { todayLocal } from '../dates';
@@ -15,6 +16,17 @@ import { insertProposal } from '../db/repositories/proposals';
 import type { Db } from '../db/types';
 
 export type CompleteFn = (request: CompletionRequest) => Promise<CompletionResult>;
+
+/** Adds a visible warning when a suggested date is not one of the dates the user's words point to. */
+function withDateCheck(outcome: ToolCallOutcome, resolved: readonly ResolvedDate[]): ToolCallOutcome {
+  if (!outcome.ok) return outcome;
+  const p = outcome.payload;
+  const date = p.kind === 'medical_record' ? p.record.event_date : (p.event.completed_date ?? p.event.scheduled_date);
+  const warning = checkSuggestedDate(date, resolved);
+  if (!warning) return outcome;
+  const warnings = [...outcome.warnings, warning];
+  return { ...outcome, warnings, payload: { ...p, warnings } };
+}
 
 /**
  * The static start of every chat prompt (system prompt + tool definitions, no personal data).
@@ -56,8 +68,12 @@ export async function sendChatMessage(args: {
   attachment?: { documentId: string; name: string; text: string } | null;
   onAssistantStarted?: (messageId: string) => void;
   onText?: (text: string) => void;
+  /** Injectable clock for tests. */
+  now?: Date;
 }) {
   const { db, profileId, conversationId, text, attachment } = args;
+  const now = args.now ?? new Date();
+  const today = todayLocal(now);
   const question = text.trim();
   if (!question) return null;
 
@@ -72,6 +88,7 @@ export async function sendChatMessage(args: {
 
   const safety = assessMessage(question);
   const doseChangeQuestion = asksAboutDoseChange(question);
+  const resolvedDates = resolveRelativeDates(question, today);
   const retrieval = await retrieveHealthContext(db, profileId, question);
   if (attachment) {
     const excerpt = attachment.text.length > 1500 ? `${attachment.text.slice(0, 1500)}…` : attachment.text;
@@ -100,7 +117,7 @@ export async function sendChatMessage(args: {
   let result: CompletionResult;
   try {
     result = await args.complete({
-      messages: buildChatMessages({ history, question, retrieval }),
+      messages: buildChatMessages({ history, question, retrieval, now, dateHints: describeResolvedDates(resolvedDates) }),
       maxTokens: 400,
       temperature: 0.7,
       tools: TOOL_DEFINITIONS,
@@ -122,7 +139,7 @@ export async function sendChatMessage(args: {
 
   const outcomes = result.toolCalls
     .slice(0, MAX_TOOL_CALLS_PER_RESPONSE)
-    .map((call) => validateToolCall(call, todayLocal(), question));
+    .map((call) => withDateCheck(validateToolCall(call, today, question), resolvedDates));
   const stopped = result.stopReason === 'stopped';
   let content = result.text.trim();
   if (!content && outcomes.some((o) => o.ok)) {

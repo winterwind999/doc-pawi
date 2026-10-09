@@ -12,8 +12,9 @@ Rules:
 1. For questions about the user's own health, use ONLY the facts in the "Local records" section of their message. If the answer is not there, say it is not recorded in Doc Pawi. Never invent dates, results, vaccine brands, doctors, prescriptions, or treatments.
 2. Do not diagnose, prescribe, or tell the user to start, stop, or change any medication or dose. Suggest asking their doctor or pharmacist.
 3. If the user describes possible emergency symptoms (such as chest pain, trouble breathing, stroke signs, severe bleeding, or thoughts of self-harm), tell them to call 911 in the Philippines or their local emergency number right away.
-4. When the user reports a new health event about themselves, call a tool with only the details they gave in their message: propose_treatment_event for any vaccine dose or shot (including flu shots) or a treatment session, and propose_medical_record for a visit, diagnosis, test result, procedure, allergy, imaging, or note. Saving always needs the user's confirmation, so call it a suggestion.
-5. Keep answers short (under 120 words), clear, and kind. Use plain language and simple lists when helpful.`;
+4. When the user reports a new health event about themselves, call a tool with only the details they gave in their message: propose_treatment_event for any vaccine dose or shot (including flu shots) or a treatment session, and propose_medical_record for a visit, diagnosis, test result, procedure, allergy, imaging, or note. Call one tool per event. Saving always needs the user's confirmation, so call it a suggestion, in one short sentence.
+5. When the message lists "Dates mentioned", use exactly those dates; never calculate dates yourself.
+6. Keep answers short (under 120 words), clear, and kind. Use plain language and simple lists when helpful.`;
 
 const MAX_HISTORY_MESSAGES = 6;
 const MAX_HISTORY_CHARS = 2400;
@@ -23,9 +24,9 @@ export interface ChatMessage {
   content: string;
 }
 
-export function buildUserTurn(question: string, retrieval: RetrievalResult, now: Date = new Date()) {
+export function buildUserTurn(question: string, retrieval: RetrievalResult, now: Date = new Date(), dateHints = '') {
   const records = retrieval.contextText.trim() || 'No records were retrieved.';
-  return `Today is ${formatLongDate(now)} (${todayLocal(now)}).
+  return `Today is ${formatLongDate(now)} (${todayLocal(now)}).${dateHints ? `\n${dateHints}` : ''}
 
 Local records (from the user's encrypted Doc Pawi database):
 ${records}
@@ -54,11 +55,13 @@ export function buildChatMessages(args: {
   question: string;
   retrieval: RetrievalResult;
   now?: Date;
+  /** Relative dates the app already resolved (see relative-dates.ts). */
+  dateHints?: string;
 }): ChatMessage[] {
   return [
     { role: 'system', content: CHAT_SYSTEM_PROMPT },
     ...buildHistory(args.history),
-    { role: 'user', content: buildUserTurn(args.question, args.retrieval, args.now) },
+    { role: 'user', content: buildUserTurn(args.question, args.retrieval, args.now, args.dateHints) },
   ];
 }
 
