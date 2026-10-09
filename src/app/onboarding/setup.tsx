@@ -79,8 +79,8 @@ export default function SetupStep() {
       </View>
       {error ? <Banner tone="danger">{error}</Banner> : null}
       <Text className="text-xs leading-4 text-ink-muted">
-        Next, you can download the on-device AI model (about 1.3 GB, Wi-Fi recommended) or do it later from
-        Settings.
+        Next, you can download the on-device AI model suggested for this phone (0.8–1.3 GB, Wi-Fi recommended) or do
+        it later from Settings.
       </Text>
     </OnboardingStep>
   );

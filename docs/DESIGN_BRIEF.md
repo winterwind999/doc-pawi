@@ -99,7 +99,7 @@ The **Style check** screen (Settings → Style check, route `/dev/style-check`) 
 | Doctors / HMO | Search/list, detail with call/email/map hand-off, user-reported HMO links/facilities |
 | Profile | Read view + edit form (units chosen by the user) |
 | Settings | AI model, security (PIN, biometrics, idle lock), reminders, demo data, privacy & info, account & data (distinct sign out / delete conversations / delete vault) |
-| AI model | Offline banner, model cards (size, quantization, license, source commit, SHA-256, status, actions), engine info (runtime, CPU library, context, KV cache, threads, load time), performance card (CPU threads, llama.cpp benchmark), test prompt with tokens/s, device info |
+| AI model | Offline banner, the model recommended for this phone first (with the reason, based on RAM), then the other model and a note on quantization; model cards (size, quantization, license, source commit, SHA-256, status, actions), engine info (runtime, CPU library, context, KV cache, threads, load time), performance card (CPU threads, llama.cpp benchmark), test prompt with tokens/s, device info |
 | Chat answer | Answer text with light Markdown rendered (bold, bullets), sources used, "AI-generated on this phone" line, and a speed line ("Read N prompt tokens at X tok/s · wrote M tokens at Y tok/s") |
 
 ## 6. Accessibility

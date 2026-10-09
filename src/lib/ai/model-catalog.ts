@@ -19,10 +19,15 @@ export interface ModelSpec {
   licenseUrl: string;
   /** Context window used by Doc Pawi (the model supports more; kept small for memory). */
   contextTokens: number;
-  recommended: boolean;
+  /**
+   * Least RAM, as Android reports it, for which this model is recommended. Phones report a little
+   * less than the advertised size (a 4 GB phone shows about 3.5–3.8 GB).
+   */
+  minRamBytes: number;
   description: string;
 }
 
+/** Best answers first: the recommendation is the first model the phone has enough RAM for. */
 export const MODEL_CATALOG: readonly ModelSpec[] = [
   {
     id: 'qwen3-1.7b-q4_k_m',
@@ -38,8 +43,9 @@ export const MODEL_CATALOG: readonly ModelSpec[] = [
     license: 'Apache-2.0',
     licenseUrl: 'https://huggingface.co/Qwen/Qwen3-1.7B/blob/main/LICENSE',
     contextTokens: 4096,
-    recommended: true,
-    description: 'Best answer quality. Recommended for phones with 4 GB of RAM or more.',
+    // About 2 GB while running (weights, 8-bit KV cache, buffers): fine on 4 GB phones.
+    minRamBytes: 3_300_000_000,
+    description: 'Best answer quality. For phones with 4 GB of RAM or more.',
   },
   {
     id: 'qwen3-0.6b-q8_0',
@@ -55,12 +61,40 @@ export const MODEL_CATALOG: readonly ModelSpec[] = [
     license: 'Apache-2.0',
     licenseUrl: 'https://huggingface.co/Qwen/Qwen3-0.6B/blob/main/LICENSE',
     contextTokens: 4096,
-    recommended: false,
+    minRamBytes: 0,
     description: 'Faster and smaller, but noticeably less accurate. For low-memory phones.',
   },
 ];
 
-export const DEFAULT_MODEL_ID = MODEL_CATALOG.find((m) => m.recommended)!.id;
+export const DEFAULT_MODEL_ID = MODEL_CATALOG[0].id;
+
+export interface ModelRecommendation {
+  spec: ModelSpec;
+  /** Why this model suits the phone, shown to the user. */
+  reason: string;
+}
+
+const formatRam = (bytes: number) => `${(bytes / 1e9).toFixed(1)} GB`;
+
+/**
+ * Recommends the model with the best answers that this phone has enough memory for. Android's
+ * low-RAM flag also selects the smallest model. Without device details the default is suggested.
+ */
+export function recommendModel(device: { totalRamBytes: number; lowRamDevice?: boolean } | null): ModelRecommendation {
+  if (!device || !(device.totalRamBytes > 0)) {
+    return { spec: MODEL_CATALOG[0], reason: 'This phone’s memory could not be read, so the model with the best answers is suggested.' };
+  }
+  const smallest = MODEL_CATALOG[MODEL_CATALOG.length - 1];
+  const spec = device.lowRamDevice ? smallest : (MODEL_CATALOG.find((m) => device.totalRamBytes >= m.minRamBytes) ?? smallest);
+  const ram = formatRam(device.totalRamBytes);
+  return {
+    spec,
+    reason:
+      spec === MODEL_CATALOG[0]
+        ? `This phone reports ${ram} of RAM, enough for the model with the best answers.`
+        : `This phone reports ${ram} of RAM. The smaller model runs more reliably with that much memory.`,
+  };
+}
 
 export function getModelSpec(id: string | null | undefined): ModelSpec | null {
   return MODEL_CATALOG.find((m) => m.id === id) ?? null;

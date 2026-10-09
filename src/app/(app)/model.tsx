@@ -9,18 +9,20 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ChoiceChips } from '@/components/ui/Choice';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Icon } from '@/components/ui/Icon';
 import { KeyValueRow, ProgressBar, Screen, SectionHeader } from '@/components/ui/Layout';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { describeTimings } from '@/lib/ai/format-text';
-import { formatBytes, MODEL_CATALOG, requiredFreeBytes, type ModelSpec } from '@/lib/ai/model-catalog';
+import { formatBytes, MODEL_CATALOG, recommendModel, requiredFreeBytes, type ModelSpec } from '@/lib/ai/model-catalog';
 import { DocPawiNative } from '@/lib/native';
 import { useModelStore } from '@/stores/model-store';
+import { colors } from '@/theme/colors';
 
 function formatRate(bytesPerSecond: number) {
   return bytesPerSecond > 0 ? `${formatBytes(bytesPerSecond)}/s` : '—';
 }
 
-function ModelCard({ spec, offline }: { spec: ModelSpec; offline: boolean }) {
+function ModelCard({ spec, offline, recommendation }: { spec: ModelSpec; offline: boolean; recommendation?: string }) {
   const store = useModelStore();
   const file = store.files[spec.id];
   const selected = store.selectedModelId === spec.id;
@@ -63,6 +65,12 @@ function ModelCard({ spec, offline }: { spec: ModelSpec; offline: boolean }) {
           <StatusBadge label="Not installed" tone="neutral" />
         )}
       </View>
+      {recommendation ? (
+        <View className="flex-row items-start gap-2 rounded-xl bg-primary-50 p-2.5">
+          <Icon name="star-circle-outline" size={18} color={colors.primary700} />
+          <Text className="flex-1 text-sm leading-5 text-primary-700">{recommendation}</Text>
+        </View>
+      ) : null}
       <View>
         <KeyValueRow label="Download size" value={formatBytes(spec.sizeBytes)} />
         <KeyValueRow label="Quantization" value={spec.quantization} />
@@ -159,6 +167,8 @@ export default function ModelScreen() {
   const offline = network.isConnected === false || network.isInternetReachable === false;
   const store = useModelStore();
   const device = useMemo(() => DocPawiNative.getDeviceProfile(), []);
+  const recommendation = useMemo(() => recommendModel(device), [device]);
+  const otherModels = MODEL_CATALOG.filter((m) => m.id !== recommendation.spec.id);
   const [testing, setTesting] = useState(false);
   const [benching, setBenching] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
@@ -212,10 +222,17 @@ export default function ModelScreen() {
         </Banner>
       ) : null}
 
-      <SectionHeader title="Models" />
-      {MODEL_CATALOG.map((spec) => (
+      <SectionHeader title="Recommended for this phone" />
+      <ModelCard spec={recommendation.spec} offline={offline} recommendation={recommendation.reason} />
+
+      <SectionHeader title={otherModels.length === 1 ? 'Other model' : 'Other models'} />
+      {otherModels.map((spec) => (
         <ModelCard key={spec.id} spec={spec} offline={offline} />
       ))}
+      <Text className="text-xs leading-4 text-ink-muted">
+        Both models are quantized: their weights are stored as 4-bit (Q4_K_M) or 8-bit (Q8_0) numbers instead of
+        16-bit, so the files are 2–3 times smaller and fit in a phone’s memory, with only a small loss in accuracy.
+      </Text>
 
       <SectionHeader title="Inference engine" />
       <Card className="gap-1">

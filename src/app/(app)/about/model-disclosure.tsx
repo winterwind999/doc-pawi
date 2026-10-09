@@ -19,6 +19,13 @@ export default function ModelDisclosureScreen() {
           ],
         })),
         {
+          heading: 'Which model is recommended',
+          body: [
+            `Doc Pawi suggests the model with the best answers that the phone has enough memory for: ${MODEL_CATALOG[0].displayName} when Android reports at least ${(MODEL_CATALOG[0].minRamBytes / 1e9).toFixed(1)} GB of RAM (4 GB phones), otherwise ${MODEL_CATALOG[MODEL_CATALOG.length - 1].displayName}. You can download and use either.`,
+            'Both are quantized: their weights are stored as 4-bit or 8-bit numbers instead of 16-bit, which makes the files 2–3 times smaller with only a small loss in accuracy.',
+          ],
+        },
+        {
           heading: 'Inference runtime',
           body: [
             'llama.cpp build b10256 (commit 6c8dcaa) through the llama.rn 0.12.9 React Native library (MIT licenses). Inference runs on the phone’s CPU; GPU and NPU acceleration are not used. The attention cache (KV cache) is stored in 8-bit (q8_0) form to save memory.',
@@ -38,6 +45,7 @@ export default function ModelDisclosureScreen() {
           body: [
             'Answers questions using only the local records retrieved for your question, plus general health information.',
             'Suggests records or vaccine/treatment events from what you tell it. Suggestions are validated and are never saved without your confirmation.',
+            'Dates you describe in words, such as “yesterday” or “last week Monday”, are worked out by the app and given to the model. A suggestion with a different date is flagged on its card.',
             'Summarizes documents and extracts candidate fields (dates, facility, test values) for your review.',
           ],
         },

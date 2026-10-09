@@ -10,6 +10,7 @@ import {
   formatBytes,
   getModelSpec,
   MODEL_CATALOG,
+  recommendModel,
   requiredFreeBytes,
   type ModelSpec,
 } from '@/lib/ai/model-catalog';
@@ -89,6 +90,13 @@ const modelsDir = () => new Directory(Paths.document, 'models');
 const modelFile = (spec: ModelSpec) => new File(modelsDir(), spec.fileName);
 const manifestFile = () => new File(modelsDir(), 'manifest.json');
 
+let recommendedId: string | null = null;
+/** The model suggested for this phone's memory: the selection until the user picks one. */
+function recommendedModelId() {
+  recommendedId ??= recommendModel(DocPawiNative.getDeviceProfile()).spec.id;
+  return recommendedId;
+}
+
 async function readManifest(): Promise<Manifest> {
   try {
     const file = manifestFile();
@@ -99,7 +107,7 @@ async function readManifest(): Promise<Manifest> {
   } catch {
     // Fall through to defaults.
   }
-  return { v: 1, selectedModelId: DEFAULT_MODEL_ID, verified: {} };
+  return { v: 1, selectedModelId: recommendedModelId(), verified: {} };
 }
 
 function writeManifest(manifest: Manifest) {
@@ -140,7 +148,7 @@ export const useModelStore = create<ModelStore>()((set, get) => ({
       const verified = Boolean(exists && record && record.sha256 === spec.sha256 && size === spec.sizeBytes);
       files[spec.id] = { exists, sizeOnDisk: size, verified, verifiedAt: verified ? record!.verifiedAt : null };
     }
-    const selected = getModelSpec(manifest.selectedModelId)?.id ?? DEFAULT_MODEL_ID;
+    const selected = getModelSpec(manifest.selectedModelId)?.id ?? recommendedModelId();
     set({ files, selectedModelId: selected, threads: manifest.threads ?? null, initialized: true });
   },
 
@@ -390,7 +398,10 @@ async function runTask(start: () => Promise<File | null>, spec: ModelSpec) {
     if (!file) return; // paused
     task = null;
     set({ download: { modelId: spec.id, phase: 'verifying', bytesWritten: spec.sizeBytes, totalBytes: spec.sizeBytes, bytesPerSecond: 0 } });
-    await store.getState().verify(spec.id);
+    const verified = await store.getState().verify(spec.id);
+    // With no usable model selected, the one just downloaded becomes the model in use.
+    const state = store.getState();
+    if (verified && !state.files[state.selectedModelId]?.verified) await state.selectModel(spec.id);
   } catch (error) {
     task = null;
     const aborted = /abort|cancel/i.test(String((error as Error)?.message ?? error));

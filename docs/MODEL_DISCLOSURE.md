@@ -5,7 +5,7 @@
 
 ## 1. Language models
 
-| | Default | Alternative |
+| | For 4 GB phones and up | For smaller phones |
 |---|---|---|
 | Model | Qwen3 1.7B | Qwen3 0.6B |
 | Publisher of weights | Qwen team (Alibaba Cloud) | Qwen team (Alibaba Cloud) |
@@ -23,6 +23,10 @@
 The checksums above were verified against the Hugging Face LFS metadata and by downloading both files (2026-10-09). The app downloads from `https://huggingface.co/<repo>/resolve/<revision>/<file>` and refuses to load a file whose size or SHA-256 differs.
 
 Note: `ggml-org/Qwen3-0.6B-GGUF` has no Q4_K_M file; Q8_0 was chosen for the small model to limit quality loss.
+
+**Which model is recommended.** The AI model screen shows the model suggested for the phone first ("Recommended for this phone"), then the other one. The suggestion is the model with the best answers that the phone has enough memory for (`recommendModel` in `src/lib/ai/model-catalog.ts`): Qwen3 1.7B when Android reports at least 3.3 GB of total RAM (4 GB phones report about 3.5–3.8 GB), otherwise, or when Android flags the phone as low-RAM, Qwen3 0.6B. The 1.7B model needs about 2 GB while running (weights, 8-bit KV cache, buffers). On a fresh install the suggested model is preselected, and the first model that finishes downloading becomes the one in use when no other model is installed. Users can download and use either.
+
+**Quantization.** Both files are quantized: their weights are stored as 4-bit (Q4_K_M) or 8-bit (Q8_0) numbers instead of 16-bit, which makes them 2–3 times smaller than the original weights, with a small loss in accuracy.
 
 ## 2. Runtime
 

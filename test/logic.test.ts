@@ -8,6 +8,7 @@ import {
   parseExtraction,
 } from '@/lib/ai/extraction';
 import { describeTimings, formatModelText, humanizeDates } from '@/lib/ai/format-text';
+import { DEFAULT_MODEL_ID, recommendModel } from '@/lib/ai/model-catalog';
 import { asksAboutDoseChange, assessMessage } from '@/lib/ai/safety';
 import { addDays, ageOn, formatTimeOfDay, greetingFor, isValidIsoDate, relativeDay } from '@/lib/dates';
 import type { ActivitySummary } from '@/lib/db/repositories/stats';
@@ -260,5 +261,22 @@ describe('specialty suggestions', () => {
 
   it('stops suggesting once the text matches exactly', () => {
     expect(suggestSpecialties('Cardiology')).not.toContain('Cardiology');
+  });
+});
+
+describe('model recommendation', () => {
+  const GB = 1e9;
+
+  it('recommends the 1.7B model on 4 GB phones and up, the 0.6B model below', () => {
+    expect(recommendModel({ totalRamBytes: 7.6 * GB }).spec.id).toBe('qwen3-1.7b-q4_k_m');
+    expect(recommendModel({ totalRamBytes: 3.6 * GB }).spec.id).toBe('qwen3-1.7b-q4_k_m');
+    expect(recommendModel({ totalRamBytes: 2.8 * GB }).spec.id).toBe('qwen3-0.6b-q8_0');
+    expect(recommendModel({ totalRamBytes: 2.8 * GB }).reason).toContain('2.8 GB of RAM');
+  });
+
+  it('follows Android’s low-RAM flag and falls back to the default without device details', () => {
+    expect(recommendModel({ totalRamBytes: 6 * GB, lowRamDevice: true }).spec.id).toBe('qwen3-0.6b-q8_0');
+    expect(recommendModel(null).spec.id).toBe(DEFAULT_MODEL_ID);
+    expect(recommendModel({ totalRamBytes: 0 }).spec.id).toBe(DEFAULT_MODEL_ID);
   });
 });
