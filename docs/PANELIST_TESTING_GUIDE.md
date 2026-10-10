@@ -13,19 +13,19 @@ That Doc Pawi (1) runs on Android, (2) executes real AI inference **on the phone
 
 | Item | Requirement |
 |---|---|
-| Phone | Android, 64-bit ARM (arm64-v8a). Tested on: HONOR JDY-LX2, Android 16, MediaTek Helio G85, ~6 GB RAM. Phones with less memory may be unable to load the 1.7B model (use the 0.6B model). |
+| Phone | Android, 64-bit ARM (arm64-v8a). Tested on: HONOR JDY-LX2, Android 16, MediaTek Helio G85, ~6 GB RAM. The AI model screen recommends the model for the phone's RAM (the 0.6B model below 4 GB). |
 | Free storage | ≥ 1.6 GB for the default model (≥ 1.1 GB for the small model) plus ~200 MB for the app |
 | App | The Doc Pawi APK (see §3) |
-| Internet | Needed **once**: model download (1.28 GB; Wi-Fi recommended). Not needed for any test case in §5. |
-| Google account | **Not required.** Use "Continue without an account" (local-only profile). Google sign-in only works in builds configured with an OAuth client. |
+| Internet | Needed **once**: model download (1.28 GB; Wi-Fi recommended). Not needed for any test case in §5 except the optional online part of PA-014 (map images). |
+| Account | **None.** Doc Pawi has no sign-in; every profile is local-only. |
 | Time | ~5 min setup + model download. On the test phone (Helio G85): opening Chats starts a 30–50 s background preparation of the AI; an answer then takes about 20–60 s; analysing the sample document takes about 4 minutes |
 
 ## 3. Installation and preparation
 
 1. **Get the APK.** Use the release APK provided by the project team (`app-release.apk`, about 141 MB, arm64), or build it yourself (README → *Build from source*). No GitHub release has been published yet.
 2. **Install.** Open the APK on the phone and allow "Install unknown apps" for your browser/file manager when Android asks. Or, with a computer: `adb install -r doc-pawi-<version>.apk`.
-3. **Create a profile (online not required).** Open Doc Pawi → *Get started* → *Continue without an account* → choose a 4-digit PIN (obvious PINs such as 1234 are rejected) → name (any) → optionally sex, birth date, height/weight → read the privacy page, toggle **I understand** → *Create my secure vault*.
-4. **Install the model (online).** On *On-device AI*, tap **Download 1.28 GB** for *Qwen3 1.7B (Q4_K_M)*. Wait for *Verifying checksum* and *Installed · verified*. Tap **Load model**, then **Run test prompt** — a sentence and its speed (tokens/s) appear. Tap **Continue to Home**.
+3. **Create a profile (online not required).** Open Doc Pawi → *Get started* → choose a 4-digit PIN (obvious PINs such as 1234 are rejected) → name (any) → optionally sex, birth date (date picker), height/weight → read the privacy page, toggle **I understand** → *Create my secure vault*.
+4. **Install the model (online).** On *On-device AI*, the model under **Recommended for this phone** comes first (Qwen3 1.7B Q4_K_M on phones with 4 GB of RAM or more). Tap **Download 1.28 GB**. Wait for *Verifying checksum* and *Installed · verified*. Tap **Load model**, then **Run test prompt** — a sentence and its speed (tokens/s) appear. Tap **Continue to Home**.
 5. **Load synthetic data.** Avatar (top right) → *Settings* → **Load synthetic demo data**. Items appear in Records, Meds, Doctors, HMO marked **Demo**.
 6. **Confirm readiness.** Settings → *Manage AI model* shows the model as **Loaded** with runtime details (llama.cpp build, CPU library, context window, KV cache). Optional: on phones with 8 CPU cores, try **CPU threads → 6** under *Performance* (it was the fastest setting on the test phone; the default is 4) and **Run llama.cpp benchmark** to see this phone's speed.
 7. **Go offline.** Enable **airplane mode** (and keep Wi-Fi off) for §5.
@@ -68,9 +68,11 @@ Record results in §6. Expected AI wording varies; judge the **facts**.
 | **PA-007** Persistence across restarts | Swipe Doc Pawi away from recent apps; reopen; enter PIN; open Records (still offline) | The confirmed records are present with the same values. |
 | **PA-008** Medication dose history | Meds → Today: tap **Taken** on one dose and **Skipped** on another → *History* | Two separate events, one *Taken* and one *Skipped*; Undo is available on Today. |
 | **PA-009** Doctors and HMO | Doctors → *Dr. Maria Santos (demo)*; HMO → *Sample HMO Health Plan (demo)* | Details available offline; HMO links and facilities are labelled **user-reported / not verified**. |
-| **PA-010** Network-independent access | Airplane mode on: browse Chats history, Records (vaccinations, treatments, documents), Meds, Doctors, HMO | Everything opens. Online-only actions (model download, Google sign-in, Open in Maps) explain that they need connectivity. |
-| **PA-011** Native styling and usability | Visit all six tabs; open a form (Add record) and a detail screen; scroll; type in a field; Settings → *Style check* | Consistent NativeWind styling (green brand, rounded cards), readable text, keyboard does not hide the focused field, nothing clipped. |
-| **PA-012** Privacy and AI disclosure | Settings → *Privacy* and *AI model disclosure* | States on-device processing, the exact model/runtime/licenses, the network exceptions (model download, optional Google sign-in, map hand-off, ML Kit metrics), and limitations. No claim of zero network use or clinical reliability. |
+| **PA-010** Network-independent access | Airplane mode on: browse Chats history, Records (vaccinations, treatments, documents), Meds, Doctors, HMO | Everything opens. Online-only actions (model download, map images, address lookup, Open in Maps) explain that they need connectivity. |
+| **PA-011** Native styling and usability | Visit all six tabs; open a form (Add record) and a detail screen; scroll; type in a field and in the chat input; open a date field; Settings → *Style check* | Consistent NativeWind styling (green brand, rounded cards), readable text, the keyboard never hides the focused field or the chat input, date fields open a date picker and dates read like "Oct 4, 2026", nothing clipped. |
+| **PA-012** Privacy and AI disclosure | Settings → *Privacy* and *AI model disclosure* | States on-device processing, the exact model/runtime/licenses, the network exceptions (model download, OpenStreetMap map images, address lookups, map hand-off, ML Kit metrics), that location is used only on request, and limitations. No claim of zero network use or clinical reliability. |
+| **PA-013** Dates in your own words | Chat: "last week Monday I had my first rabies shot and my 2nd was on thursday" → inspect the two cards → **Confirm & save** both → Records → *Vaccinations* | Two suggestions in a *Rabies vaccine* series, dated the Monday of last week and the Thursday of the same week (said on Saturday, Oct 10, 2026: Sep 28 and Oct 1, 2026). If a card shows another date, it also shows "Check the date: …". After confirming, one series with two doses. Tap your message to see when it was sent. |
+| **PA-014** Nearby accredited facilities | HMO → *Sample HMO Health Plan (demo)* → *Edit* on a facility → *Location on the map*: paste `14.5995, 120.9842` (or *Use my current location*) → *Save facility* → *Show nearest on map* | The facility appears as a pin and in the list (with a distance once you allow location). Only facilities you saved show; they are labelled user-reported. Online: OpenStreetMap map images with attribution. Offline: "Offline: map images may be missing", while pins, list, and distances still work. *Directions* asks before opening your maps app. |
 
 Optional checks: emergency wording ("I have chest pain") shows a red *Possible emergency* banner with *Call 911*; asking "Should I double my metformin dose?" adds a fixed note that Doc Pawi cannot advise dose changes; Settings → *Lock now* returns to the PIN screen; five wrong PINs trigger a 30-second pause.
 
@@ -99,6 +101,8 @@ Optional checks: emergency wording ("I have chest pain") shows a red *Possible e
 | PA-010 | | |
 | PA-011 | | |
 | PA-012 | | |
+| PA-013 | | |
+| PA-014 | | |
 
 ### 6.1 Reference run by the developer (for comparison)
 
@@ -118,12 +122,14 @@ Release APK on the HONOR JDY-LX2 test phone, 2026-10-10, airplane mode on and Wi
 | PA-010 | Pass | All tabs and details opened offline; the model screen explains that downloads need internet |
 | PA-011 | Pass | Style check, forms with validation messages, scrolling; welcome subtitle clipping found and fixed |
 | PA-012 | Pass | Privacy, AI model disclosure, and medical disclaimer screens |
+| PA-013 | Pass (second round, online) | Two *Rabies vaccine* suggestions dated Sep 28 and Oct 1, 2026, 84 s; both confirmed into one series; "Sent Oct 10, 2026, 7:20 AM" on tap |
+| PA-014 | Pass (second round) | In a separate test profile: GPS, address lookup, pasted coordinates and a tap on the map set locations; pins, distances, filters, Directions; airplane mode showed cached map images and the offline note. Not run with the demo HMO |
 
 ## 7. Known limitations (read before judging)
 
 - AI answers and document analysis are slow on mid-range phones (see measured speeds in [MODEL_DISCLOSURE.md](MODEL_DISCLOSURE.md#5-measured-performance)).
 - The small on-device model can make mistakes; that is why answers show their sources and suggestions require confirmation.
-- Google sign-in is disabled in builds without an OAuth client; the local-only profile is the supported evaluation path.
+- The nearby map shows only facilities you saved: HMOs publish no shared directory of accredited facilities, so Doc Pawi never looks accreditation up. Map images come from OpenStreetMap and need internet.
 - OCR reads printed Latin-script text only (no handwriting). PDFs: first 5 pages.
 - Reminders may be delayed by a few minutes unless Android's "Alarms & reminders" access is granted (on the test phone a reminder arrived about 80 s after its time).
 - Removing demo data keeps anything you added yourself, including doses you added to a demo vaccine series.

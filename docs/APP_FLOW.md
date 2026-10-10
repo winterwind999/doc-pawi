@@ -17,20 +17,15 @@ When the state changes (unlock, idle lock, sign-out), Expo Router moves to the f
 
 ```mermaid
 flowchart TD
-  L[Launch] --> W[Welcome: mascot + Get started]
-  W --> S1["1 Sign in: Continue with Google / Local-only profile"]
-  S1 -->|Google cancelled| S1c[Message: cancelled, try again or go local] --> S1
-  S1 -->|offline| S1o[Google button disabled: needs internet once] --> S1
-  S1 -->|not configured / DEVELOPER_ERROR 10| S1n[Explain, offer local-only] --> S1
-  S1 -->|Google account already has a profile here| U[Unlock existing profile]
-  S1 -->|success or local-only| S2["2 Create PIN + confirm (weak PINs rejected)"]
-  S2 --> S3["3 Name + sex (optional)"]
-  S3 --> S4["4 Date of birth (optional, validated)"]
-  S4 --> S5["5 Height + weight with units (optional)"]
-  S5 --> S6["6 Privacy & medical limits — must acknowledge"]
-  S6 --> S7["7 Set up secure storage: key → SQLCipher DB → profile + PIN → registry"]
-  S7 -->|failure| S7e[Nothing kept; Try again] --> S7
-  S7 --> M[On-device AI setup]
+  L[Launch] --> W["Welcome: mascot + Get started (local-only profile, no account)"]
+  W --> S1["1 Create PIN + confirm (weak PINs rejected)"]
+  S1 --> S2["2 Name + sex (optional)"]
+  S2 --> S3["3 Date of birth (optional, date picker: 1900 to today)"]
+  S3 --> S4["4 Height + weight with units (optional)"]
+  S4 --> S5["5 Privacy & medical limits — must acknowledge"]
+  S5 --> S6["6 Set up secure storage: key → SQLCipher DB → profile + PIN → registry"]
+  S6 -->|failure| S6e[Nothing kept; Try again] --> S6
+  S6 --> M[On-device AI setup: the model recommended for this phone's RAM is shown first]
   M -->|Download| D[Progress · pause/resume/cancel · SHA-256 verify]
   D -->|no internet / storage too low / checksum mismatch| Me[Explain + retry or skip] --> M
   D --> LD[Load model → test prompt optional]
@@ -40,9 +35,9 @@ flowchart TD
 ```
 
 Notes
-- Nothing is written to disk until step 7; abandoning onboarding leaves no partial profile.
-- Google sign-in is only needed once per new profile; returning users never need it.
-- The model step can be skipped; AI features then show a "Set up AI model" prompt.
+- Nothing is written to disk until step 6; abandoning onboarding leaves no partial profile.
+- There is no sign-in: the profile exists only on this phone, and onboarding works fully offline (only the model download needs internet).
+- The model step can be skipped; AI features then show a "Set up AI model" prompt. The first model that finishes downloading becomes the one in use.
 
 ## 2. Returning user
 
@@ -84,7 +79,10 @@ flowchart LR
   Meds --> MedDetail[Medication detail] --> MedEdit[Edit medication]
   Meds --> MedNew[Add medication]
   Doctors --> DocDetail[Doctor detail] --> DocEdit[Edit doctor]
-  HMO --> HmoDetail[HMO detail] --> Facility[Add/edit facility]
+  HMO --> HmoDetail[HMO detail] --> Facility[Add/edit facility + location]
+  HMO --> Nearby[Nearby facilities map]
+  HmoDetail --> Nearby
+  Nearby --> Facility
   Settings --> ModelSetup & ChangePIN[Change PIN] & Privacy & Disclosure[Model disclosure] & Disclaimer & StyleCheck[Style check]
 ```
 
@@ -96,6 +94,10 @@ See the sequence diagram in [LOCAL_AI_ARCHITECTURE.md §3](LOCAL_AI_ARCHITECTURE
 | Situation | What the user sees |
 |---|---|
 | Model not installed | Banner with "Set up AI model"; Send disabled |
+| Typing | The composer stays above the keyboard; focusing it scrolls to the latest message |
+| Attaching documents | Paperclip opens a list of recent documents with their state: "Reading text…" and "Text not read yet" cannot be picked; "Ready" and "Text ready · AI summary running" can. Up to three are attached as removable chips and shown on the sent message |
+| Message mentions relative dates | The app works them out ("last week Monday" = Monday, Sep 28, 2026) and gives them to the model; a suggestion with another date shows "Check the date: …" on its card |
+| Tapping a sent message | Shows or hides "Sent Oct 10, 2026, 4:48 AM" under it (AI answers show their time in the footer) |
 | Model installed, not loaded | First message loads it automatically ("Reading your local records and thinking on-device…") |
 | Chats or a conversation opened | The model reads its fixed instructions in the background (30–50 s on the test phone, no visible state); a message sent meanwhile waits for it and then starts sooner |
 | Model fails to load | Error banner with link to the model screen; the assistant message is saved with status *error* and an honest reason |
@@ -128,11 +130,27 @@ See [LOCAL_AI_ARCHITECTURE.md §5](LOCAL_AI_ARCHITECTURE.md#5-document-flow). Sc
 
 Reminders: Android 13+ asks for notification permission (with an explanation in Meds/Settings). Denial is handled: a banner explains and offers app settings; doses can still be recorded manually. Notifications never mark a dose as taken.
 
-## 7. Offline and error flows
+Dates and times are chosen with the phone's date and time pickers (quick picks such as Today and Yesterday where useful); end dates cannot be before start dates, and past events cannot be in the future. Dates are shown as "Oct 4, 2026".
+
+## 7. HMO and nearby facilities
+
+| Journey | Steps | Result |
+|---|---|---|
+| Save a facility your HMO accredits | HMO → an HMO → Add facility → name, type, address, phone, notes → optional location: *Use my current location* (GPS, at the facility), *Find from address* (asks first; needs internet), paste coordinates, or tap the map preview → Save | Facility saved, linked to that HMO (user-reported) |
+| Find the nearest one | HMO tab → *Nearby accredited facilities* (or an HMO → *Show nearest on map*) → *Use my location* the first time (Android permission dialog) | Map with pins and your position; list nearest first with straight-line distances; filters by HMO and type |
+| Go there | Tap a pin or a list card → *Directions* → confirm | The phone's maps app opens at the facility (only its position and name are shared) |
+| A facility without a location | Nearby map → "No location saved" → *Add location* | Opens the facility form |
+
+Doc Pawi never looks up or guesses which facilities an HMO accredits: HMOs publish no shared directory. The map only shows what the user saved.
+
+## 8. Offline and error flows
 
 | Condition | What the user sees | Still works |
 |---|---|---|
-| Phone offline | Google sign-in button disabled with an explanation; model download disabled with "You are offline" | Unlock, chat (installed model), OCR, records, meds, doctors, HMO, reminders |
+| Phone offline | Model download disabled with "You are offline"; the map shows "Offline: map images may be missing"; *Find from address* is disabled with an explanation | Unlock, chat (installed model), OCR, records, meds, doctors, HMO, nearby list and distances (GPS), map pins, reminders |
+| Location permission denied | Nearby map: "Use my location" card again (or "Location permission is off" with *Open settings* when Android stops asking); facility form: the reason under the location buttons | Map and list without distances; other ways to set a facility's location |
+| Location turned off | "Location is turned off on this phone…" | Same as above |
+| Address not found | "No place was found for this address…" | GPS, pasted coordinates, tap on the map |
 | Model missing | Chats/document review show "Set up AI model" | Everything except AI answers and AI document analysis (OCR still works) |
 | Model fails to load | Error with likely cause (memory) and suggestion (close apps / smaller model) | Same as above |
 | Download fails | "Model download failed: … check your connection"; partial file removed | Retry later |

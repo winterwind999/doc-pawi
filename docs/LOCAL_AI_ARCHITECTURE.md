@@ -59,16 +59,17 @@ sequenceDiagram
   UI->>M: on opening Chats / a conversation: prefill static prompt + tools (skipped if already cached)
   U->>UI: message
   UI->>CS: sendChatMessage
-  CS->>DB: save user message
+  CS->>DB: save user message + its attachments (one transaction)
   CS->>S: emergency / dose-change checks (deterministic)
+  CS->>CS: resolve relative dates ("last week Monday" → 2026-09-28)
   CS->>R: detect intents + keywords
   R->>DB: read-only queries (vaccinations, treatments, meds, records, doctors, HMO)
   R-->>CS: context block + sources + "Not recorded: …"
   CS->>DB: assistant placeholder (status generating)
-  CS->>M: messages + 2 proposal tools (Jinja template, thinking off)
+  CS->>M: messages + 2 proposal tools (Jinja template, thinking off, parallel tool calls)
   M-->>UI: streamed visible text (≈ 8 UI updates/s)
   M-->>CS: final text + tool calls + timings
-  CS->>CS: Zod-validate each tool call (max 2), mark a facility the user did not mention
+  CS->>CS: Zod-validate each tool call (max 2), mark a facility the user did not mention, warn on a date that is not one the user meant
   CS->>DB: transaction: assistant message + pending proposals
   UI->>U: answer, sources used, model + tok/s, proposal cards
   U->>P: Confirm (edited fields re-validated) / Reject
@@ -78,7 +79,8 @@ sequenceDiagram
 ### Prompt structure
 - **System prompt (static):** role, "use only the Local records for user-specific facts; say it is not recorded otherwise", no diagnosis/prescribing/dose changes, emergency instruction (911 Philippines), which tool to call for which event (vaccine doses including flu shots → `propose_treatment_event`; visits, diagnoses, results, procedures, allergies, imaging, notes → `propose_medical_record`), short answers. Static content lets llama.cpp reuse its KV cache across turns.
 - **Prefill:** the system prompt plus the two tool definitions are about 700 tokens, which takes roughly 30–50 s to read on the test phone's CPU. When the user opens Chats or a conversation, the engine evaluates this static prefix in the background (a one-token completion, so the timing counters stay accurate). llama.rn keeps the longest common token prefix of the KV cache, so the question then only processes its own part (≈ 230 tokens instead of ≈ 1,050). The prefill is skipped when the cache already starts with the prefix (for example right after an answer), contains no personal data, and is cancelled by Stop or by locking.
-- **Latest user turn:** today's date, the retrieved local records (≤ 2,600 characters, member IDs masked to the last 4 characters), explicit "Not recorded in Doc Pawi: …" lines for requested topics with no data, then the question.
+- **Latest user turn:** today's date; the "Dates mentioned" lines the app calculated (see below); excerpts of up to three attached documents (1,500 characters for one, 1,000 each for two, 800 each for three, so attaching more barely lengthens the prompt); the retrieved local records (≤ 2,600 characters, member IDs masked to the last 4 characters); explicit "Not recorded in Doc Pawi: …" lines for requested topics with no data; then the question.
+- **Relative dates:** small models are unreliable at calendar arithmetic. On the test phone, "last week Monday i also had my first rabies shot and my 2nd was on thursday", said on Saturday, Oct 10, 2026, became suggestions for Sep 27 and Oct 4, both Sundays. `src/lib/ai/relative-dates.ts` now resolves phrases such as "yesterday", "the day before yesterday", "3 days ago", "last/this/next week Monday", "Monday of last week", "last Thursday", "next Monday", and bare weekdays (weeks start on Monday; a bare weekday after an anchored one stays in that week when that keeps the story in order; "every Monday" is ignored). The prompt lists them as `Dates mentioned (calculated by the app; use these exact dates)`, a system rule tells the model to use them, and a suggestion whose date matches none of them gets a visible "Check the date: …" warning. Rule 4 also asks for one tool call per event and a one-sentence reply, which keeps multi-event answers short.
 - **History:** last 6 messages (≤ 2,400 characters), earlier record context is not repeated.
 - **Sampling:** temperature 0.7, top-k 20, top-p 0.8, min-p 0, presence penalty 0.5 (0 for JSON), `n_predict` 400 for chat. All parameters are passed on every call because llama.rn keeps omitted values from the previous call.
 
@@ -96,6 +98,9 @@ The model **cannot** read or write the database directly, access files, run code
 
 - **Facility check:** a facility in a suggestion is compared with the user's own message. If it is not there (on the test phone the model once copied "Quezon City Health Center" from the records when the user said "the city health center"), the field is listed as unverified and the card asks the user to check it until they change it.
 - **Series matching:** a confirmed vaccine/treatment event joins the user's existing series with the same title, but never a synthetic demo series.
+- **Several events, several suggestions:** chat requests allow parallel tool calls, so "my first rabies shot … my 2nd …" produces one suggestion per dose (at most two per answer). llama.rn 0.12.9 passes this flag to native code as a string and loses it; `llama-engine.ts` corrects it (see [TECHNICAL_REQUIREMENTS §4](TECHNICAL_REQUIREMENTS.md#4-compatibility-decisions-and-trade-offs)).
+- **Vaccine shots filed as doses:** the 1.7B model sometimes proposes a shot as a visit or procedure record despite the system prompt. Such a suggestion (title with "shot", "vaccine", "booster", …, in a message about one) becomes a dose in a vaccination series named from the title, e.g. "First rabies shot" → "Rabies vaccine". It remains a suggestion the user confirms or edits.
+- **Attached documents are answered from, not saved again:** the attachment block in the prompt says the documents are already saved and asks for an answer in words; without it the model replied to a question about two attached reports with a "save" suggestion.
 
 ## 5. Document flow
 
@@ -129,6 +134,7 @@ flowchart LR
 | Fabricated history | Records come only from retrieval; explicit "Not recorded" lines; system rule to say it is not recorded; sources shown under each answer. |
 | Invented records | Proposals only; Zod validation; explicit confirmation; provenance (`ai_chat`, `document`) stored on every saved row. |
 | Details the user never said | Facility in a chat suggestion checked against the user's message and marked for checking when absent. |
+| Wrong dates from relative phrases | The app resolves "yesterday", "last week Monday", etc. itself, gives the dates to the model, and warns on a suggestion dated otherwise. |
 | OCR/LLM extraction errors | Grounding check + "Verify" labels; editable review; original text available. |
 | Summary contradicting the document | Deterministic summary-vs-flags check with a visible warning before saving. |
 | Overconfident presentation | Every AI message shows "AI-generated on this phone by <model> · Not medical advice"; summaries are labelled AI-generated. |
@@ -140,8 +146,9 @@ flowchart LR
 |---|---|---|
 | Chat, retrieval, proposals, document OCR + extraction, reminders, all records | **None** | — |
 | Model download | Hugging Face (`huggingface.co` → CDN) | HTTP GET for a public file |
-| Google sign-in (optional) | Google | Standard OAuth sign-in |
-| Maps / call / email buttons | Other apps | The address, phone number, or email the user tapped |
+| Nearby facilities map (not AI) | OpenStreetMap tile servers | Requests for the map images of the visible area |
+| Facility address lookup (not AI, confirmed each time) | Android geocoder (usually Google) | The address text |
+| Maps / call / email buttons | Other apps | The address or map position, phone number, or email the user tapped |
 | ML Kit metrics | Google (when online) | Anonymous API usage/performance metrics (no images or text) |
 
 ## 8. Measured performance

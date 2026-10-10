@@ -6,21 +6,24 @@
 ## 1. Summary
 
 - Health records, documents, conversations, and AI processing stay **on the phone**.
+- No accounts or sign-in: each profile exists only on the phone.
 - No cloud AI, no cloud OCR, no backend, no sync, no analytics or advertising SDKs, no crash reporting.
-- The network is used only for: optional Google sign-in, the one-time model download, maps/phone/email hand-offs the user taps, and anonymous ML Kit usage metrics (see §4). Doc Pawi does **not** claim to make zero network requests.
+- The network is used only for: the one-time model download, OpenStreetMap map images on the nearby facilities map, address lookups the user confirms, maps/phone/email hand-offs the user taps, and anonymous ML Kit usage metrics (see §4). Doc Pawi does **not** claim to make zero network requests.
+- The phone's location is read only when the user taps a location button, is used on the phone, and is never sent anywhere by Doc Pawi.
 
 ## 2. Data stored locally
 
 | Data | Storage | Protection |
 |---|---|---|
-| Profile (name, email, sex, date of birth, height, weight) | SQLCipher DB + SecureStore registry (name/email) | AES-256 (SQLCipher); Keystore-encrypted SecureStore |
-| Records, vaccinations, treatments, medications, dose history, doctors, HMO details (incl. member ID), facilities | SQLCipher DB | AES-256 |
+| Profile (name, sex, date of birth, height, weight) | SQLCipher DB + SecureStore registry (name) | AES-256 (SQLCipher); Keystore-encrypted SecureStore |
+| Records, vaccinations, treatments, medications, dose history, doctors, HMO details (incl. member ID), facilities and their map positions | SQLCipher DB | AES-256 |
 | Conversations and AI suggestions, model metadata | SQLCipher DB | AES-256 |
 | Imported documents | `files/vault/<profile>/…` | AES-256-GCM, non-exportable Android Keystore key per profile |
 | Recognized document text, AI summaries | SQLCipher DB | AES-256 |
 | Database key (random 256-bit) | expo-secure-store | Encrypted by an Android Keystore AES-GCM key |
 | PIN | Only a PBKDF2-SHA256 verifier (120,000 iterations, random salt) | SecureStore |
 | Doctor photos | App-private files | Android app sandbox (not encrypted by Doc Pawi) |
+| Map images already viewed (OpenStreetMap tiles) | App image cache | Android app sandbox; public map images, but they show which areas were viewed |
 | AI model files | App-private files | Public model weights; checksum-verified |
 
 Android Auto Backup is disabled (`android:allowBackup="false"`), and SecureStore entries are excluded from backups.
@@ -38,9 +41,11 @@ Android Auto Backup is disabled (`android:allowBackup="false"`), and SecureStore
 
 | When | Destination | What is sent | What is never sent |
 |---|---|---|---|
-| Google sign-in (optional, first setup only) | Google | Standard Google Sign-In request; Google returns name, email, account id | Health data |
 | Model download (once per model) | huggingface.co and its CDN | HTTP request for a public file at a pinned commit | Any personal data |
-| "Open in Maps", call, email buttons (user-initiated, confirmed for maps) | The phone's maps/phone/email app | The address, number, or email shown | Records, conversations |
+| Nearby facilities map and facility map preview (while online) | tile.openstreetmap.org (OpenStreetMap Foundation) | Requests for the map images of the area on screen, with the User-Agent `DocPawi/1.0`; like any web request they reveal the phone's IP address. Images already seen are cached on the phone. | Health data, saved facilities, HMOs, the user's position (only the visible area can be inferred) |
+| "Find from address" in the facility form (asks first each time) | The phone's geocoding service (Google on most Android phones), through Android's Geocoder | The address text typed for that facility | Health data, the user's position |
+| "Use my location" / "Use my current location" | None from Doc Pawi; Android's location service (often Google Play services) computes the position | — | The position is kept in memory or saved on the facility, never sent by Doc Pawi |
+| "Open in Maps" / "Directions", call, email buttons (user-initiated, confirmed for maps) | The phone's maps/phone/email app | The address or map position and name, number, or email shown | Records, conversations |
 | ML Kit text recognition (when online) | Google | Per Google's ML Kit terms: anonymous metrics about API usage and performance (e.g., latency, image size, device model, app package) | Images and recognized text ("processing … fully happens on-device") |
 
 No prompt, conversation, record, document, or OCR text is sent to any AI provider.
@@ -56,7 +61,7 @@ Medication reminders are local. By default their text is generic ("You have a sc
 | Delete a record / document / medication / doctor / HMO | That item (documents: encrypted file + text) | Linked items (records keep data if their document is deleted) |
 | Delete all conversations (type DELETE) | All chats and pending suggestions | Confirmed records |
 | Remove AI model | The model file | All health data |
-| Sign out | Nothing (closes the vault; Google session ended) | Everything, unlockable offline with the PIN |
+| Sign out | Nothing (closes the vault) | Everything, unlockable offline with the PIN |
 | Delete health vault (type DELETE) | Entire profile: DB, documents, keys, reminders | Other profiles, model files |
 | Android → Clear storage | Everything for all profiles | — |
 
@@ -69,3 +74,4 @@ Medication reminders are local. By default their text is generic ("You have a sc
 - Doctor photos are not encrypted by Doc Pawi (only protected by the app sandbox).
 - Biometric unlock is an app-level gate that releases the same Keystore-protected key as the PIN.
 - If medication names are enabled in notifications, they may appear on the lock screen.
+- Map images come from OpenStreetMap's public tile servers, which see the requested map areas and the phone's IP address. Location permission, once granted, stays granted until the user changes it in Android settings; Doc Pawi still reads the position only on request.

@@ -50,22 +50,50 @@ On Windows, `plugins/withShortCxxPaths.js` shortens CMake staging paths (`%LOCAL
 |---|---|---|---|
 | `npm run typecheck` | Static | ✅ 0 errors | 2026-10-10 |
 | `npm run lint` | Static | ✅ 0 problems | 2026-10-10 |
-| `npm test` | Unit (Node) | ✅ 6 suites, **74 tests passed** | 2026-10-10 |
+| `npm test` | Unit (Node) | ✅ 8 suites, **101 tests passed** | 2026-10-10 |
 
 Test suites ([`test/`](../test)):
 
 | Suite | Covers |
 |---|---|
-| `db.test.ts` | Migrations (tables, idempotency, downgrade refusal), CHECK and FK constraints, transaction rollback, profile/settings, record CRUD + search/filter + LIKE escaping, conversation cascade, treatment events ordering, medication schedules, dose slots, Taken/Skipped distinctness, correction/undo, archive keeps history, permanent delete, doctor–HMO links, input validation |
-| `proposals.test.ts` | Nothing saved while pending, confirm creates exactly one record, double-confirm prevented, reject saves nothing, invalid edits write nothing, vaccine series reuse, malformed/unknown tool calls, impossible dates, stripping of unexpected fields, facility not in the user's message marked for checking |
+| `db.test.ts` | Migrations (tables, idempotency, downgrade refusal, upgrading a v1 database keeps its message attachments), CHECK and FK constraints, transaction rollback, profile/settings, record CRUD + search/filter + LIKE escaping, conversation cascade, several attachments per message (order, duplicates, document deletion), treatment events ordering, medication schedules, dose slots, Taken/Skipped distinctness, correction/undo, archive keeps history, permanent delete, doctor–HMO links, input validation, facility coordinates (both or neither, ranges) and the accredited-facility list |
+| `proposals.test.ts` | Nothing saved while pending, confirm creates exactly one record, double-confirm prevented, reject saves nothing, invalid edits write nothing, vaccine series reuse, malformed/unknown tool calls, impossible dates, stripping of unexpected fields, facility not in the user's message marked for checking, a vaccine shot suggested as a visit filed as a dose, vaccine series names |
 | `retrieval.test.ts` | Intent/keyword detection, exact demo dates in context, lab values, medications with today's dose state, "Not recorded" lines, HMO member-ID masking, static system prompt |
-| `logic.test.ts` | Extraction grounding ("Verify" flags), summary-vs-flags consistency check (including the exact summary seen on the device), normalization, proposal building, JSON parsing, emergency + dose-change detection, date handling (leap years, boundaries, ages, 12-hour times), PIN throttling, data-driven Home message, Markdown-lite rendering, timing summary text |
-| `services.test.ts` | Chat orchestration with a scripted model: metadata + sources persisted, tool call → pending proposal (no record), invalid tool discarded, stop keeps partial text, model errors recorded honestly; synthetic demo data load/remove, including user events on a demo series surviving removal |
+| `logic.test.ts` | Extraction grounding ("Verify" flags), summary-vs-flags consistency check (including the exact summary seen on the device), normalization, proposal building, JSON parsing, emergency + dose-change detection, date handling (leap years, boundaries, ages, 12-hour times), readable dates in AI text, PIN throttling, data-driven Home message, Markdown-lite rendering, timing summary text, specialty suggestions, model recommendation by RAM |
+| `relative-dates.test.ts` | The rabies report ("last week Monday … thursday" on Sat, Oct 10, 2026 → Sep 28 and Oct 1), "monday of last week", "this week's tuesday", order within an anchored week, yesterday / the day before yesterday / N days or weeks ago, last/next weekday, tense of bare weekdays, "every Monday" ignored, prompt lines and the "Check the date" warning |
+| `geo.test.ts` | Web Mercator projection round trip, tiles covering a view (antimeridian wrap), fitting markers in a view, straight-line distance, distance labels, parsing pasted coordinates (including a keyboard's space after the decimal point) |
+| `services.test.ts` | Chat orchestration with a scripted model: metadata + sources persisted, tool call → pending proposal (no record), invalid tool discarded, an attached document in the prompt but not in the message, two attachments sharing the excerpt budget, resolved dates in the prompt and the wrong-weekday warning, stop keeps partial text, model errors recorded honestly; synthetic demo data load/remove, including user events on a demo series surviving removal |
 | `engine.test.ts` | llama.rn adapter with a mocked context: static-prefix prefill runs once and is skipped while cached, re-runs after other prompts / cache clear / interruption, Stop cancels a request queued behind a prefill, idle Stop does not touch native code, benchmark clears the stale flag and KV cache first and rejects an empty result |
 
 Not covered by automated tests: React component rendering (NativeWind is disabled under Jest), SQLCipher encryption itself, native Kotlin code, real model output, notifications, permissions. These are verified on the device (§4).
 
 ## 4. On-device results
+
+### 4.1 Second round: the follow-up requests
+
+2026-10-10, 06:50–08:05. Release APK on the same phone, **online** (Wi-Fi on, needed for map images and the address lookup) except where airplane mode is stated. A temporary profile was created to test onboarding and the HMO map and was deleted afterwards (Settings → Delete health vault); chat checks used the synthetic test profile. Location and camera permissions were set back to "ask" at the end.
+
+| Check | Result | Evidence |
+|---|---|---|
+| Onboarding without Google | ✅ | Welcome lists profiles as "Local-only profile"; *Add a new profile* opens "Step 1 of 6 — Create a 4-digit PIN" with the no-accounts text; 6 steps to the vault; the AI step follows |
+| Date of birth picker | ✅ | Material date dialog; future dates cannot be selected; year list → Oct 4, 1995 → shown as "Oct 4, 1995" with a clear button |
+| Other date and time pickers | ✅ | Treatment Start/End (quick picks *Today*, *Yesterday*; an End date before the Start cannot be selected), medication Start/End, dose time "8:00 AM"; HMO *Valid until* is a picker; dates across screens read like "Oct 10, 2026, 7:32 AM" |
+| Keyboard in forms | ✅ | Onboarding name field and *Continue* stay above the keyboard; the lowest HMO field (Coverage notes) scrolls above the *Save HMO* bar |
+| Keyboard in chat | ✅ after fix | The composer was still hidden: keyboard-controller's `automaticOffset` measured the view at y = 0, short by the header. With the header height passed as `keyboardVerticalOffset` the input sits right above the keyboard |
+| Recommended model first | ✅ | "Recommended for this phone": Qwen3 1.7B, "This phone reports 6.1 GB of RAM, enough for the model with the best answers."; then "Other model": Qwen3 0.6B; then the quantization note |
+| The rabies message | ✅ after two fixes | Reported: about 3 min and Sundays (Sep 27, Oct 4). Now the app-calculated dates are used: first run 51 s Send → done (214 prompt tokens at 10.4 tok/s, 64 tokens at 3.5 tok/s) but **one** suggestion, filed as a *Visit*. After enabling parallel tool calls (llama.rn passed the flag as a string) and filing vaccine shots as doses: two suggestions, "First rabies shot — Rabies vaccine · completed Sep 28, 2026" and "Second rabies shot — … Oct 1, 2026", 84 s with the model loaded (130 tokens at 3.3 tok/s; 95 s right after a reinstall, including model loading). Both confirmed → one "Rabies vaccine" series with two doses. The model also added "City health center", which the facility check flagged |
+| When a message was sent | ✅ | Tapping the sent bubble shows "Sent Oct 10, 2026, 7:20 AM"; tapping again hides it |
+| Attachments and their state | ✅ | During a document analysis the picker showed "Text ready · AI summary running" for the new document and "Ready" for the older one; both attached as chips; the sent message lists both names. After the fix the picker also shows each import time (two documents had the same name) |
+| Answering from attachments | ✅ after fix | With two reports the model replied with a "save" suggestion (1,207 prompt tokens at 5.9 tok/s, phone warm after a 4-min analysis, about 4 min in total). With the new prompt line and one report: a direct answer about total cholesterol 5.4 mmol/L above the < 5.2 range (855 prompt tokens at 8.8 tok/s, 60 tokens at 3.1 tok/s, about 2.5 min) |
+| Doctor form | ✅ after fix | *Add photo* → "Take a photo / Choose from gallery"; camera denied → "Camera permission is off"; Phone 1–5 and Email 1–5 fields; Save → doctor detail; Edit → *Save changes* → Back → Doctors list (no duplicate detail). The specialty suggestions were hidden under the Save bar while typing; moved above the field and re-checked: "neur" → *Neurology*, *Neurosurgery*, tap fills the field with the keyboard open |
+| Treatments button | ✅ | "+ Add treatment", full label, centred |
+| Nearby facilities map | ✅ after fix | First run: OpenStreetMap answered every tile with an "Access blocked" image. Tests from the PC and the phone showed the User-Agent was the cause: any User-Agent containing "offline" is blocked, `DocPawi/1.0 (Android; com.docpawi.app)` is served. After the fix: tiles, pins, the user's position, attribution; drag, zoom buttons, centre-on-me; tapping a pin labels it and highlights its card; straight-line distances, nearest first; type filters; *Directions* confirmation; "No location saved" + *Add location* |
+| Facility location | ✅ | *Use my current location* (Android dialog, "Only this time", accurate to about 20 m); *Find from address* (confirmation, then "Found from the address"); pasted coordinates; tap on the preview (after the fix each tap zooms three levels: Philippines → Manila) |
+| Location permission denied | ✅ | Map shows the "See which facility is nearest" card; after *Don't allow*: "Location permission is off" + *Open settings*; list without distances |
+| Airplane mode on the map | ✅ | "Offline: map images may be missing"; cached map images, pins and list still shown |
+| Not verified in this round | — | Pinch to zoom (adb cannot send two-finger gestures), the "Check the date" warning card (unit-tested; on the phone the model used the given dates), three attachments, camera capture with permission granted, PDF import, biometric unlock, the Qwen3 0.6B model |
+
+### 4.2 First round (2026-10-09/10)
 
 Procedure: install the build on the test phone over USB, complete onboarding, and run the [panelist cases](PANELIST_TESTING_GUIDE.md#5-core-test-cases). Model timings are the llama.cpp values the app displays; "Send → done" is wall-clock time from the tap on Send to the finished answer. Unless noted, results are from the **release APK** (JS bundled, no Metro) on 2026-10-10 with **airplane mode on, Wi-Fi off, no active network, and no USB port forwarding** (`adb reverse` removed). The phone was charging; Android reported thermal status 0 throughout.
 
@@ -74,7 +102,7 @@ Procedure: install the build on the test phone over USB, complete onboarding, an
 | Debug build installs and launches | ✅ | 175.3 MB debug APK (2026-10-09); NativeWind styles rendered natively |
 | Release build installs over the debug build and runs without Metro | ✅ | 140.9 MB arm64 release APK; app data (profile, records, model) kept across the upgrade and ~10 later reinstalls |
 | NativeWind style check renders natively | ✅ | Settings → Style check: colour tokens, type scale, rounded cards, pressable counter (tapped 2×), scrolling list |
-| Onboarding (local-only profile) + SQLCipher DB created | ✅ | 7-step onboarding completed twice; Settings shows SQLCipher 4.7.0 community; Google sign-in step states honestly that it is not configured in this build |
+| Onboarding (local-only profile) + SQLCipher DB created | ✅ | 7-step onboarding completed twice (it then still had a Google sign-in step, since removed); Settings shows SQLCipher 4.7.0 community |
 | Hand-off to AI model setup after creating a profile | ✅ | After "Create my secure vault", the app opens "Final step: install the on-device AI" (fixed in this round; it was lost before) |
 | Model download + SHA-256 verification in app | ✅ | 1.28 GB over Wi-Fi at about 5 MB/s, pause/resume worked, on-device SHA-256 matched the pinned value (2026-10-09, debug build) |
 | Model load + test prompt | ✅ | Load 11.4–13.7 s; "Hello, I'm running offline on this phone." — 40 prompt tokens at 12.7 tok/s, 9 tokens at 5.5 tok/s (4 threads) |
@@ -94,7 +122,7 @@ Procedure: install the build on the test phone over USB, complete onboarding, an
 | Profile isolation and vault deletion | ✅ | A second profile started empty (no data from the first); "Delete health vault" (type DELETE) removed it and left the first profile intact |
 | Remove demo data | ✅ after fix | Demo items removed; the user's confirmed flu shot (which had been filed under the demo series) kept in its own series — found and fixed in this round |
 | Welcome screen subtitle | ✅ after fix | "AI Medical Assistant" was clipped to "AI Medical" on this phone; fixed and re-verified |
-| Not verified on device in this round | — | PDF import, camera capture with permission granted, attaching a document to a chat, biometric unlock, the Qwen3 0.6B model, Google sign-in (needs an OAuth client) |
+| Not verified on device in this round | — | PDF import, camera capture with permission granted, attaching a document to a chat (verified in the second round), biometric unlock, the Qwen3 0.6B model |
 
 ## 5. Checklist
 
@@ -109,8 +137,11 @@ Procedure: install the build on the test phone over USB, complete onboarding, an
 | User confirmation before writes | Unit (Node) + device (reject saves nothing, confirm saves once) | ✅ |
 | Medication dose history | Unit (Node) + device | ✅ |
 | Treatment and vaccination history | Unit (Node) + device | ✅ |
-| Date and time-zone handling | Unit (Node) — local wall-clock slots, calendar validation | ✅ |
-| Authentication and local unlock | Device (local-only profile, PIN, throttling, idle lock); Google sign-in requires OAuth configuration | ✅ local / ⚠️ Google not configured |
+| Date and time-zone handling | Unit (Node) — local wall-clock slots, calendar validation; device — date and time pickers | ✅ |
+| Relative dates in chat | Unit (Node) + device (the rabies message) | ✅ |
+| Authentication and local unlock | Device (local-only profile, PIN, throttling, idle lock); there are no accounts | ✅ |
+| Keyboard and input visibility | Device (onboarding, forms, chat) | ✅ |
+| Nearby facilities map and locations | Unit (Node: projection, distances, coordinates, DB) + device (online, airplane mode, permission denied) | ✅ (pinch not testable over adb) |
 | Profile isolation | Design (separate DB/key/PIN/vault key per profile) + device check with a second profile | ✅ |
 | Sensitive-data logging | Code review: no `console.*` of prompts, OCR text, or records; no analytics SDK | ✅ |
 | NativeWind rendering | Device (Style check screen, debug and release) | ✅ |

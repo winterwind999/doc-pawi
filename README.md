@@ -24,30 +24,34 @@ Medical information is scattered across paper results, photos, and conversations
 
 ## Features
 
-Status legend: **Verified** = tested on the physical Android device (HONOR JDY-LX2, release APK, airplane mode, 2026-10-10) · **Implemented** = complete, not yet verified on the device · see [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) and [Testing](docs/TESTING.md#4-on-device-results).
+Status legend: **Verified** = tested on the physical Android device (HONOR JDY-LX2, release APK, 2026-10-10; core workflow in airplane mode, map and address lookup online) · **Implemented** = complete, not yet verified on the device · see [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) and [Testing](docs/TESTING.md#4-on-device-results).
 
 | Feature | Status |
 |---|---|
-| Onboarding: local-only profile, 4-digit PIN, profile (sex, DOB, height/weight with units), privacy disclosure, secure storage setup, hand-off to AI model setup | Verified |
-| Google sign-in | Implemented — requires an OAuth client; not verified |
+| Onboarding: local-only profile (no accounts or sign-in), 4-digit PIN, profile (sex, date of birth, height/weight with units), privacy disclosure, secure storage setup, hand-off to AI model setup | Verified |
 | PIN unlock offline with persistent throttling, idle auto-lock, sign-out, profile switching | Verified |
+| Date and time pickers for every date field (birth date, medication and treatment dates, records, documents); dates shown as "Oct 4, 2026" | Verified |
+| Forms and the chat input stay above the keyboard | Verified |
 | Biometric unlock (optional) | Implemented — not verified on the device |
 | Encrypted SQLCipher database per profile (Keystore-protected random key), AES-256-GCM document vault | Verified (SQLCipher 4.7.0 reported by the app; documents stored in the encrypted vault) |
 | Home: date, greeting, mascot, data-driven message, today's doses, ongoing treatments, upcoming events | Verified |
 | Chats: streaming local answers, history, local-record retrieval with sources, AI proposals with confirm/edit/reject, emergency and dose-change safety notes, per-answer speed | Verified |
-| Chat: stop button, attaching a processed document to a question | Implemented — not verified on the device |
+| Chat: relative dates ("last week Monday", "yesterday") worked out by the app, with a warning when a suggestion uses another day; one suggestion per event (up to two), vaccine shots filed as doses; tap a message to see when it was sent | Verified (the warning itself is unit-tested) |
+| Chat: attach up to three processed documents to a question, with each document's processing state and import time shown | Verified (with two documents) |
+| Chat: stop button | Implemented — not verified on the device |
 | Documents: sample import, on-device OCR, AI summary + field extraction with "Verify" labels, summary consistency warning, review and confirm | Verified (bundled sample image) |
 | Documents: camera, gallery, and PDF import | Implemented — camera permission-denied path verified; capture and PDF not verified |
 | Records, vaccinations, treatment timelines, provenance labels | Verified · search/filter/edit unit-tested |
 | Meds: schedules, Taken/Skipped history with Undo, delete, local reminders (generic lock-screen text) | Verified · archiving unit-tested |
-| Doctors and HMO (user-reported links, facilities, map/call/email hand-off) | Verified |
-| Model setup: pinned download with progress/pause/resume, SHA-256 verification, load/unload, CPU-thread setting, test prompt, llama.cpp benchmark, device info | Verified (Qwen3 1.7B; the 0.6B model was not tested) |
+| Doctors and HMO (user-reported links, facilities, map/call/email hand-off); doctor form with camera-or-gallery photo, specialty suggestions, up to 5 phones and 5 emails | Verified (camera capture itself not tested) |
+| Nearby accredited facilities: OpenStreetMap map and list of the facilities you linked to your HMOs, nearest first; facility location from GPS, an address lookup, pasted coordinates, or a tap on the map | Verified (pinch-zoom could not be tested over adb) |
+| Model setup: the model recommended for this phone's RAM shown first, pinned download with progress/pause/resume, SHA-256 verification, load/unload, CPU-thread setting, test prompt, llama.cpp benchmark, device info | Verified (Qwen3 1.7B; the 0.6B model was not tested) |
 | Synthetic demo data for evaluation (load and remove, keeping user entries) | Verified |
-| Unit and database tests (74 passing) | Verified (Node) |
+| Unit and database tests (101 passing) | Verified (Node) |
 
 ## Technology
 
-Expo SDK 57 · React Native 0.86 (New Architecture) · TypeScript 6 · Expo Router · NativeWind 4 + Tailwind CSS 3 · `llama.rn` 0.12.9 / llama.cpp b10256 · Qwen3 GGUF · Google ML Kit Text Recognition v2 (bundled) · expo-sqlite with SQLCipher · expo-secure-store / Android Keystore · Zod · Zustand · a local Kotlin Expo module (`modules/doc-pawi-native`). Details and versions: [Technical Requirements](docs/TECHNICAL_REQUIREMENTS.md).
+Expo SDK 57 · React Native 0.86 (New Architecture) · TypeScript 6 · Expo Router · NativeWind 4 + Tailwind CSS 3 · `llama.rn` 0.12.9 / llama.cpp b10256 · Qwen3 GGUF · Google ML Kit Text Recognition v2 (bundled) · expo-sqlite with SQLCipher · expo-secure-store / Android Keystore · react-native-keyboard-controller · expo-location · OpenStreetMap tiles drawn with expo-image and react-native-gesture-handler · Zod · Zustand · a local Kotlin Expo module (`modules/doc-pawi-native`). Details and versions: [Technical Requirements](docs/TECHNICAL_REQUIREMENTS.md).
 
 ## Local AI architecture (short)
 
@@ -78,7 +82,7 @@ npm install        # On Windows use PowerShell or cmd, not Git Bash (llama.rn's 
 ```
 
 ### Configure (optional)
-Copy `.env.example` to `.env.local`. No secrets are needed. Google sign-in stays disabled unless you set `EXPO_PUBLIC_GOOGLE_SIGN_IN_ENABLED=true` **and** create an Android OAuth client in Google Cloud for package `com.docpawi.app` with your signing key's SHA-1 (otherwise Google returns `DEVELOPER_ERROR`). The local-only profile always works.
+Nothing needs configuring: Doc Pawi has no accounts, API keys, or backend. `.env.example` documents the optional Windows build variables (`DOC_PAWI_CXX_JOBS`, `DOC_PAWI_CXX_ROOT`).
 
 ### Run a development build
 ```powershell
@@ -101,7 +105,7 @@ npm run typecheck; npm run lint; npm test
 ```
 
 ### AI model
-Models are **not** in the repository. Install from the app: Settings → *Manage AI model* → *Download* (Qwen3 1.7B Q4_K_M, 1.28 GB, pinned to `ggml-org/Qwen3-1.7B-GGUF@daeb8e2d…`, SHA-256 `d2387ca2…bc7b5`). See [Model Disclosure](docs/MODEL_DISCLOSURE.md).
+Models are **not** in the repository. Install from the app: Settings → *Manage AI model*. The screen shows the model recommended for the phone's RAM first: Qwen3 1.7B Q4_K_M (1.28 GB, pinned to `ggml-org/Qwen3-1.7B-GGUF@daeb8e2d…`, SHA-256 `d2387ca2…bc7b5`) on 4 GB phones and up, otherwise Qwen3 0.6B Q8_0 (0.80 GB). Both are quantized GGUF files. See [Model Disclosure](docs/MODEL_DISCLOSURE.md).
 
 ## Quick demo (5 steps)
 1. Create a local-only profile and PIN.
@@ -111,9 +115,9 @@ Models are **not** in the repository. Install from the app: Settings → *Manage
 5. Records → Import document → *Try the synthetic sample report* → review → Confirm.
 
 ## Known limitations
-- AI is slow on mid-range phones. On the test phone (Helio G85): opening Chats prepares the model for 30–50 s in the background, an answer then takes about 20–60 s, and analysing a one-page lab report about 4 minutes — see measured speeds in the [Model Disclosure](docs/MODEL_DISCLOSURE.md#5-measured-performance).
+- AI is slow on mid-range phones. On the test phone (Helio G85): opening Chats prepares the model for 30–50 s in the background, an answer then takes about 20–90 s (a message with two events: 84 s; with an attached report: about 2.5 minutes), and analysing a one-page lab report about 4 minutes — see measured speeds in the [Model Disclosure](docs/MODEL_DISCLOSURE.md#5-measured-performance).
 - Small local models can be wrong; answers show sources and suggestions need confirmation. Errors seen on the test phone (a summary calling an unflagged result "elevated", a clinic name copied from records) are now flagged by deterministic checks, but not every possible error can be caught.
-- Google sign-in needs OAuth configuration and uses the legacy Google Sign-In SDK.
+- The nearby map shows only facilities you saved and linked to an HMO: HMOs publish no shared accreditation directory, so Doc Pawi never looks accreditation up or guesses it. Map images need internet (OpenStreetMap); distances are straight-line.
 - OCR: printed Latin script only; PDFs limited to 5 pages. No dark theme. Android only.
 
 ## Documentation
@@ -131,7 +135,7 @@ Models are **not** in the repository. Install from the app: Settings → *Manage
 - [Panelist Testing Guide](docs/PANELIST_TESTING_GUIDE.md)
 
 ## Privacy
-Everything stays on the device; the network is used only for optional Google sign-in, the one-time model download, maps/phone/email hand-offs you tap, and anonymous ML Kit usage metrics. See [Privacy](docs/PRIVACY.md).
+Everything stays on the device. There are no accounts. The network is used only for the one-time model download, OpenStreetMap map images on the nearby facilities map, address lookups you confirm, maps/phone/email hand-offs you tap, and anonymous ML Kit usage metrics. Your location is read only when you tap a location button and is never sent anywhere. See [Privacy](docs/PRIVACY.md).
 
 ## License
-Third-party components keep their own licenses (Qwen3 weights: Apache-2.0; llama.cpp and llama.rn: MIT; Google ML Kit: ML Kit Terms of Service). The `LICENSE` file currently in this repository is the MIT license that came with the Expo project template (copyright 650 Industries); the project owner should confirm or replace it with the intended license for Doc Pawi's own code.
+Doc Pawi's own code, documentation, and assets are proprietary: copyright © 2026 winterwind999, all rights reserved (see [`LICENSE`](LICENSE)). Third-party components keep their own licenses (Qwen3 weights: Apache-2.0; llama.cpp and llama.rn: MIT; Google ML Kit: ML Kit Terms of Service; map data © OpenStreetMap contributors, ODbL).

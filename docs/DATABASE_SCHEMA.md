@@ -14,7 +14,7 @@ There is **no server database**. Each local profile has its own encrypted SQLite
 | PIN verifier | `docpawi.pin.<profileId>` (PBKDF2-SHA256, 120,000 iterations, 128-bit salt) | SecureStore |
 | PIN throttle state | `docpawi.throttle.<profileId>` | SecureStore |
 | Biometric preference | `docpawi.bio.<profileId>` | SecureStore |
-| Profile registry | `docpawi.registry.v1` (id, display name, email, auth provider/subject, signed-in profile) | SecureStore |
+| Profile registry | `docpawi.registry.v1` (id, display name, signed-in profile; the email and auth provider/subject fields are kept for early builds and are empty for new local-only profiles) | SecureStore |
 | Documents | `files/vault/<profileId>/<documentId>.dpv` | AES-256-GCM, non-exportable Keystore key `docpawi_vault_<profileId>` |
 | Doctor photos | `files/doctor-photos/<profileId>/` | App-private storage (not health records) |
 | AI models | `files/models/*.gguf` + `manifest.json` | App-private; shared by profiles; no personal data |
@@ -72,6 +72,7 @@ Purpose: applied migration versions. Columns: `version INTEGER PK`, `name TEXT`,
 |---|---|---|
 | 1 | `initial_schema` | All tables below except `message_attachments` |
 | 2 | `message_attachments` | Several documents per chat message; copies v1's `messages.attachment_document_id` values |
+| 3 | `facility_coordinates` | `facilities.latitude` / `longitude` for the nearby facilities map |
 
 ### `profiles`
 One row per database (the profile that owns it).
@@ -79,10 +80,10 @@ One row per database (the profile that owns it).
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | id | TEXT PK | no | Same id as the registry entry |
-| auth_provider | TEXT | no | `google` or `local` |
-| auth_subject | TEXT | yes | Google account id; `UNIQUE(auth_provider, auth_subject)` |
+| auth_provider | TEXT | no | `local` for every new profile. The CHECK still allows `google`, which early builds used; Google sign-in has been removed. |
+| auth_subject | TEXT | yes | NULL for local profiles (was the Google account id); `UNIQUE(auth_provider, auth_subject)` |
 | display_name | TEXT | no | 1–80 characters |
-| email | TEXT | yes | From Google |
+| email | TEXT | yes | NULL for local profiles (was filled from Google by early builds) |
 | sex | TEXT | yes | `female`, `male`, `intersex`, `prefer_not_to_say` |
 | birth_date | TEXT | yes | Not in the future |
 | height_value / height_unit | REAL / TEXT | yes | > 0; `cm` or `in`; plausible ranges enforced by Zod |
@@ -166,9 +167,9 @@ Indexes: `(profile_id, event_date DESC)`, `(profile_id, category)`, `(document_i
 
 `hmos`: `provider_name`, `plan_name`, `member_id`, `valid_until`, `coverage_notes`, `hotline`, `source_type`.
 
-`facilities`: `name`, `facility_type` (`hospital`, `clinic`, `laboratory`, `diagnostic_center`, `pharmacy`, `other`), `address`, `phone`, `notes`, `source_type`.
+`facilities`: `name`, `facility_type` (`hospital`, `clinic`, `laboratory`, `diagnostic_center`, `pharmacy`, `other`), `address`, `phone`, `notes`, `source_type`, and since v3 `latitude` / `longitude` (WGS84 `REAL`, both set or both NULL; latitude −90…90, longitude −180…180). The position comes from the user (GPS, an address lookup they confirm, pasted coordinates, or a tap on the map) and drives the nearby facilities map.
 
-`doctor_hmos (doctor_id, hmo_id)` and `hmo_facilities (hmo_id, facility_id, note)`: user-reported links (composite PKs, CASCADE on both sides). The UI always labels them "user-reported / not verified".
+`doctor_hmos (doctor_id, hmo_id)` and `hmo_facilities (hmo_id, facility_id, note)`: user-reported links (composite PKs, CASCADE on both sides). The UI always labels them "user-reported / not verified". The nearby map lists facilities with at least one `hmo_facilities` link (`listAccreditedFacilities`, which returns each facility's HMOs as a JSON array built with `json_group_array`).
 
 ### `record_proposals`
 AI suggestions awaiting review; kept separate so a suggestion never appears in Records before confirmation.
@@ -211,6 +212,7 @@ Writes are serialized by an in-app lock (`createDb`) so transactions never inter
 |---|---|
 | Health records, medications, dose history, treatments, vaccinations, doctors, HMO member IDs, conversations, OCR text, AI summaries | Encrypted SQLCipher database |
 | Original documents | Encrypted vault files |
-| Name, email, Google subject, PIN verifier, keys | SecureStore (Keystore-encrypted) |
+| Profile name, PIN verifier, keys | SecureStore (Keystore-encrypted) |
+| Facility map positions | Encrypted SQLCipher database |
 | Doctor photos | App-private files (unencrypted; not health records) |
 | Model files | App-private files (public model weights) |

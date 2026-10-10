@@ -87,16 +87,18 @@ The **Style check** screen (Settings → Style check, route `/dev/style-check`) 
 | Screen | Layout and interaction |
 |---|---|
 | Welcome | Mascot, name, tagline, privacy promise; profile list for returning users; Get started; disclaimer line |
-| Onboarding (7 steps) | Step x of 7 + progress bar, title, explanation, content, sticky footer actions; skip on optional steps |
+| Onboarding (6 steps) | Step x of 6 + progress bar, title, explanation, content, footer actions that stay above the keyboard; skip on optional steps; date of birth from a date picker |
 | Unlock | Mascot, greeting with first name, PIN dots + keypad, biometric key when enabled, lockout banner with countdown, switch profile, forgot-PIN explanation |
 | Home | Mascot card with date, greeting, name, data-driven message; quick actions (Ask, Import); model status; today's doses with Taken/Skipped; ongoing treatments; upcoming/overdue events; activity tiles |
 | Chats | New conversation; model status; conversation list with preview, time, count, delete |
-| Conversation | Message list (user right/green, assistant left/white), sources disclosure, model + speed footer, proposal cards, emergency banners; composer with attach, send/stop |
+| Conversation | Message list (user right/green with attached document names; tap to show "Sent …"; assistant left/white), sources disclosure, model + speed footer, proposal cards (with "Check the date" and facility warnings), emergency banners; composer above the keyboard with attach (up to 3 documents, each with its state and import time, as removable chips), send/stop |
 | Records | Tabs: Records (search + category chips), Vaccinations, Treatments, Documents; add/import actions |
 | Record detail | Title, provenance badge, key fields, lab results table with document flags, provenance section, edit/delete |
 | Document review | File info + encrypted storage note, preview (images), job progress with elapsed time, AI summary card, editable proposal with Found/Verify labels, recognized text, delete |
 | Meds | Add; permission banner; tabs Today / Active / Archived / History |
-| Doctors / HMO | Search/list, detail with call/email/map hand-off, user-reported HMO links/facilities |
+| Doctors / HMO | Search/list, detail with call/email/map hand-off, user-reported HMO links/facilities; doctor form with camera-or-gallery photo dialog, specialty suggestions above the field, 5 phone and 5 email fields |
+| Nearby facilities | Filter chips (HMO, type), OpenStreetMap map (pins coloured by type, your position, + / − / centre buttons, attribution, offline note), location card or permission banner, list nearest first with distance, user-reported HMO line, Directions and Edit; "No location saved" section |
+| Facility form | Name, type, address, phone, notes; "Location on the map": current location, find from address (confirmation), coordinates field, map preview where each tap places the pin and zooms in |
 | Profile | Read view + edit form (units chosen by the user) |
 | Settings | AI model, security (PIN, biometrics, idle lock), reminders, demo data, privacy & info, account & data (distinct sign out / delete conversations / delete vault) |
 | AI model | Offline banner, the model recommended for this phone first (with the reason, based on RAM), then the other model and a note on quantization; model cards (size, quantization, license, source commit, SHA-256, status, actions), engine info (runtime, CPU library, context, KV cache, threads, load time), performance card (CPU threads, llama.cpp benchmark), test prompt with tokens/s, device info |

@@ -43,7 +43,7 @@ Doc Pawi provides health information and personal medical-record management. **I
 | **Patient in multi-step treatment** — e.g., a 3-dose vaccine series, physical therapy sessions | See what was done, what is next, and when | Does not create clinical schedules; the user enters or confirms them |
 | **Lab-result recipient** | Understand a report in plain language; keep the values | OCR and a small LLM can misread values; the user must review |
 | **Medication manager** | Today's doses, reminders, Taken/Skipped history | Reminders depend on Android notification permission and OS scheduling; never changes doses |
-| **Offline user** | Access information without connectivity | First-time Google sign-in and the model download need internet |
+| **Offline user** | Access information without connectivity | The model download and map images need internet |
 | **Privacy-conscious user** | Keep sensitive data on device | Data protection depends on device security (screen lock, OS updates) |
 
 ## 4. Product goals and success measures
@@ -66,17 +66,17 @@ Each requirement has a stable ID. Acceptance criteria (AC) are written so they c
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-001 | **Google sign-in** on first launch to establish the account identity of a new local profile. | AC1: Tapping *Continue with Google* opens the Google account chooser. AC2: Cancel returns to the sign-in screen with a non-blocking message. AC3: No internet → an explanatory error with retry. AC4: When the build has no Google OAuth client configured, the button is disabled and the reason is shown. | Partial — no OAuth client in this build; the app shows the reason (AC4 verified); AC1–AC3 not verifiable |
-| FR-002 | **Local-only profile** as a privacy-preserving alternative when Google is unavailable or declined. | AC1: The option is clearly labelled as local-only (no account recovery). AC2: It leads to the same PIN and profile steps. | Verified |
+| FR-001 | ~~Google sign-in~~ — **removed** (2026-10-10). Doc Pawi has no accounts; every profile is local-only (FR-002). | — | Removed |
+| FR-002 | **Local-only profile**: the only kind of profile; it exists only on this phone and needs no internet. | AC1: Welcome and the PIN step say the profile is local-only and that a forgotten PIN cannot be recovered. AC2: Onboarding goes straight to PIN creation (6 steps). | Verified |
 | FR-003 | **Four-digit PIN** creation with confirmation. | AC1: Mismatched confirmation is rejected. AC2: The PIN is never stored in plain text. | Verified |
 | FR-004 | **PIN unlock with throttling** for returning users, fully offline. | AC1: Correct PIN unlocks without network. AC2: After 5 consecutive failures, unlock is blocked with an increasing delay that survives app restarts. | Verified |
 | FR-005 | **Idle auto-lock.** | AC1: Returning from background after the idle timeout requires the PIN. AC2: Locking closes the database and clears in-memory health data. | Verified |
 | FR-006 | **Optional biometric unlock** (after PIN setup). | AC1: Can be enabled only after entering the PIN. AC2: PIN always remains available as a fallback. | Implemented — not verified on the device |
-| FR-007 | **Profile setup:** display name, sex, date of birth, height and weight with units. | AC1: Invalid dates and implausible measurements are rejected with a descriptive message. AC2: Units are stored with values. | Verified |
+| FR-007 | **Profile setup:** display name, sex, date of birth, height and weight with units. | AC1: Invalid dates and implausible measurements are rejected with a descriptive message. AC2: Units are stored with values. AC3: The date of birth is chosen with a date picker limited to 1900 through today. | Verified |
 | FR-008 | **Privacy and medical-limitations disclosure** acknowledged during onboarding. | AC1: The user must acknowledge before storage is initialized. | Verified |
 | FR-009 | **Local storage initialization:** create a random database key in Android Keystore-backed storage and an encrypted SQLCipher database per profile. | AC1: The database file cannot be opened without the key. AC2: Failure shows a recoverable error. | Verified |
 | FR-010 | **Profile view and edit.** | AC1: Changes persist after restart. | Implemented — not exercised on the device |
-| FR-011 | **Sign out** ends the session without deleting data. | AC1: Sign-out closes the database, clears the Google session, and returns to the welcome screen. AC2: The profile can be unlocked again offline with its PIN. | Implemented — not exercised on the device |
+| FR-011 | **Sign out** ends the session without deleting data. | AC1: Sign-out closes the database and returns to the welcome screen. AC2: The profile can be unlocked again offline with its PIN. | Implemented — not exercised on the device |
 | FR-012 | **Profile isolation.** Each local profile has its own encrypted database, key, PIN, and document-encryption key. | AC1: Unlocking profile A never exposes profile B's data. | Verified |
 
 ### 5.2 Home
@@ -89,13 +89,14 @@ Each requirement has a stable ID. Acceptance criteria (AC) are written so they c
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-014 | **Conversations:** create, list, open, rename-by-first-message, and delete; messages persist. | AC1: Messages are visible after restart. | Verified |
+| FR-014 | **Conversations:** create, list, open, rename-by-first-message, and delete; messages persist. | AC1: Messages are visible after restart. AC2: Tapping a sent message shows when it was sent ("Sent Oct 10, 2026, 4:48 AM"). AC3: The message being typed stays visible above the keyboard. | Verified |
 | FR-015 | **Local LLM responses** with streaming and cancellation. | AC1: Tokens appear progressively. AC2: *Stop* ends generation and keeps the partial text marked "Stopped". AC3: No network request is made for inference. | Verified (Stop: unit-tested only) |
 | FR-016 | **Health-history retrieval** before answering user-specific questions. | AC1: Relevant local records are included in the model input. AC2: The UI shows which local records were used. | Verified |
 | FR-017 | **No fabrication.** | AC1: When no matching record exists, the reply states that it is not recorded in Doc Pawi. | Implemented — unit-tested; the "not recorded" question was not asked on the device |
-| FR-018 | **AI-proposed record changes** (medical record, treatment/vaccination event) validated with Zod and shown as a proposal card. | AC1: Nothing is written to Records until *Confirm*. AC2: *Reject* creates nothing. AC3: Invalid model output is reported and discarded. | Verified |
+| FR-018 | **AI-proposed record changes** (medical record, treatment/vaccination event) validated with Zod and shown as a proposal card. | AC1: Nothing is written to Records until *Confirm*. AC2: *Reject* creates nothing. AC3: Invalid model output is reported and discarded. AC4: Relative dates in the user's message ("last week Monday", "yesterday") are worked out by the app and given to the model; a suggestion with a different date shows a "Check the date" warning. | Verified (the "Check the date" warning is unit-tested; on the phone the model used the given dates) |
 | FR-019 | **Safety guidance**: emergency red-flag terms show an emergency banner (call 911 in the Philippines / local emergency number); the assistant never prescribes or changes doses. | AC1: The banner appears independently of the model output. | Verified |
 | FR-020 | **Model state handling** in chat: not installed, loading, busy, error. | AC1: A missing model shows a link to model setup, not a fake answer. | Implemented — loading/ready verified; not-installed path not tested on the device |
+| FR-042 | **Attach processed documents** to a question. | AC1: Up to three documents per message. AC2: The picker shows each document's processing state; documents whose text is not read yet cannot be attached. AC3: Attached documents are listed on the sent message; their text goes to the model, not into the message. | Verified (with two documents) |
 
 ### 5.4 Documents
 
@@ -128,9 +129,11 @@ Each requirement has a stable ID. Acceptance criteria (AC) are written so they c
 
 | ID | Requirement | Acceptance criteria | Status |
 |---|---|---|---|
-| FR-033 | **Doctors:** searchable list; add/edit/delete; specialty, organization, address, phones, emails, optional local photo, linked HMOs (user-reported). | AC1: HMO links are labelled "user-reported", never "verified". | Verified (view and labels; add/edit not exercised on the device) |
+| FR-033 | **Doctors:** searchable list; add/edit/delete; specialty, organization, address, phones, emails, optional local photo, linked HMOs (user-reported). | AC1: HMO links are labelled "user-reported", never "verified". AC2: *Add photo* asks whether to take a photo or choose from the gallery. AC3: Specialty offers suggestions while typing. AC4: Up to five phone and five email fields. AC5: After *Save changes*, Back returns to where the user came from (no duplicate detail screen). | Verified (camera capture itself not tested) |
 | FR-034 | **HMO:** provider, plan, member ID, validity, coverage notes, hotline; linked saved facilities and doctors. | AC1: Works offline. AC2: No accreditation data is invented. | Verified |
-| FR-035 | **Optional map hand-off** ("Open in Maps") for a saved address. | AC1: Clearly labelled as leaving the app and requiring connectivity; only the address is shared. | Verified |
+| FR-035 | **Optional map hand-off** ("Open in Maps" / "Directions") for a saved address or map position. | AC1: Clearly labelled as leaving the app and requiring connectivity; only the address, or the position and name, is shared. | Verified |
+| FR-043 | **Nearby accredited facilities map.** | AC1: Shows only facilities the user linked to an HMO, labelled user-reported; nothing is looked up or guessed. AC2: With location permission, the list is sorted by straight-line distance from the user; without it the map and list still work. AC3: Map images come from OpenStreetMap with visible attribution; without internet, pins, list, and distances still work. AC4: Filters by HMO and facility type. | Verified (type filters with one HMO; pinch-zoom not tested) |
+| FR-044 | **Facility location** for the map. | AC1: Can be set from the phone's position, an address lookup the user confirms (online), pasted coordinates, or a tap on the map preview. AC2: Stored only in the encrypted database; latitude and longitude are validated and saved together. | Verified |
 
 ### 5.8 Model lifecycle
 
@@ -138,6 +141,7 @@ Each requirement has a stable ID. Acceptance criteria (AC) are written so they c
 |---|---|---|---|
 | FR-036 | **Model download** to app-private storage with progress, cancel, free-space check, and SHA-256 verification against a pinned Hugging Face revision. | AC1: A corrupted or partial file is never marked ready. | Verified |
 | FR-037 | **Model status and lifecycle:** load, unload, delete, test prompt with timings, device information. | AC1: The app never reports an absent or failed model as ready. | Verified (unload/delete not exercised on the device) |
+| FR-045 | **Recommended model first.** | AC1: The AI model screen shows the model suggested for the phone's RAM first, with the reason, then the other model. AC2: Only quantized models are offered (Q4_K_M, Q8_0), and the screen says so. | Verified |
 
 ### 5.9 Settings, privacy, and data deletion
 
@@ -145,15 +149,16 @@ Each requirement has a stable ID. Acceptance criteria (AC) are written so they c
 |---|---|---|---|
 | FR-038 | **Settings:** model status and storage, privacy information, model disclosure, medical disclaimer, PIN change, biometric toggle, notification preferences, idle-lock timeout. | AC1: Each item opens a working screen. | Verified (PIN change and biometric toggle not exercised on the device) |
 | FR-039 | **Distinct destructive actions:** sign out, remove model, delete all conversations, delete health vault. | AC1: Each has its own confirmation explaining exactly what is removed. AC2: Deleting the vault removes the database, encrypted documents, and keys for that profile only. | Verified (delete vault, remove demo data); other actions not exercised on the device |
-| FR-040 | **Offline behaviour.** | AC1: All local features work in airplane mode. AC2: Online-only actions (Google sign-in, model download, map hand-off) explain why they are unavailable. | Verified |
+| FR-040 | **Offline behaviour.** | AC1: All local features work in airplane mode. AC2: Online-only actions (model download, map images, address lookup, map hand-off) explain why they are unavailable. | Verified (the address lookup's offline state was not checked on the phone) |
 | FR-041 | **Synthetic demo data** loader for evaluation, clearly labelled, removable. | AC1: Demo rows are labelled "Demo" and can be removed without touching user-entered data. | Verified |
+| FR-046 | **Date entry and display.** | AC1: Every date and time field opens the phone's picker instead of a text field, with sensible limits (no future dates for past events, end dates not before start dates). AC2: Dates are shown as "Oct 4, 2026" everywhere, including dates written by the AI. | Verified |
 
 ## 6. Non-functional requirements
 
 | ID | Category | Requirement |
 |---|---|---|
 | NFR-001 | Local inference | All LLM inference runs on-device through llama.cpp. There is no cloud inference fallback. |
-| NFR-002 | Privacy | Health records, conversations, and document contents are never sent to any AI provider or analytics service. Network use is limited to Google sign-in, the model download, and user-initiated map hand-off (see [PRIVACY.md](PRIVACY.md)). |
+| NFR-002 | Privacy | Health records, conversations, and document contents are never sent to any AI provider or analytics service. Network use is limited to the model download, OpenStreetMap map images, address lookups the user confirms, and user-initiated hand-offs; the user's location is read only on request and never sent (see [PRIVACY.md](PRIVACY.md)). |
 | NFR-003 | Encryption | SQLCipher (AES-256) database with a random 256-bit key protected by Android Keystore; documents encrypted with AES-256-GCM using a non-exportable Keystore key. A 4-digit PIN is an access gate, not the encryption key. |
 | NFR-004 | Offline reliability | Every local feature works without connectivity; errors explain what still works. |
 | NFR-005 | Performance | UI stays responsive during model load and inference (native background threads). Conservative context (4,096 tokens) and output limits. Performance is measured on a physical device and reported honestly. |
@@ -165,6 +170,7 @@ Each requirement has a stable ID. Acceptance criteria (AC) are written so they c
 | NFR-011 | Resource constraints | Model download checks free space; model loading reports failures (e.g., insufficient memory); only one inference job runs at a time. |
 | NFR-012 | Honest disclosure | The app and documentation state the model, runtime, licenses, measured performance, and limitations; unverified capabilities are not claimed. |
 | NFR-013 | Logging hygiene | Health data, prompts, and OCR text are never written to logs. |
+| NFR-014 | Input visibility | The focused input and the form's main action stay visible above the on-screen keyboard (Android 15+ edge-to-edge). |
 
 ## 7. Scope
 
@@ -175,7 +181,7 @@ Genuine on-device inference · local health-context retrieval · local OCR + AI 
 Medication reminders · treatment and vaccination timelines · model management UI · doctor and HMO management · robust settings · biometric unlock · synthetic demo data.
 
 ### Could have
-More advanced retrieval (embeddings) · additional document formats · higher-accuracy OCR models · charts of lab values over time · in-app maps · dark theme.
+More advanced retrieval (embeddings) · additional document formats · higher-accuracy OCR models · charts of lab values over time · offline map images · dark theme.
 
 ### Out of scope
 Cloud-based medical reasoning · autonomous diagnosis · autonomous prescription or dose changes · invented HMO accreditation data · cloud sync or backup of health data · claims of clinical reliability · iOS release (code is cross-platform where practical, but only Android is built and tested).
@@ -196,4 +202,4 @@ Cloud-based medical reasoning · autonomous diagnosis · autonomous prescription
 
 ## 9. Medical safety principles
 
-Doc Pawi must not present model output as a diagnosis, prescribe medication, change doses or override clinician instructions, invent health records, claim OCR is always accurate, or delay/dismiss emergency care. It communicates uncertainty, labels AI-generated content, and encourages appropriate professional care. See [LOCAL_AI_ARCHITECTURE.md](LOCAL_AI_ARCHITECTURE.md#safety-controls) for the controls that enforce this.
+Doc Pawi must not present model output as a diagnosis, prescribe medication, change doses or override clinician instructions, invent health records, claim OCR is always accurate, or delay/dismiss emergency care. It communicates uncertainty, labels AI-generated content, and encourages appropriate professional care. See [LOCAL_AI_ARCHITECTURE.md](LOCAL_AI_ARCHITECTURE.md#6-safety-controls) for the controls that enforce this.

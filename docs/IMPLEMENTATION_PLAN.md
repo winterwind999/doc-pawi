@@ -69,7 +69,7 @@ No calendar estimates are given; tasks are ordered by dependency.
 | P6-001 | Local reminders | P5-004 | `reminders.ts` | DAILY notifications; generic text by default; permission handling | Verified | Reminder posted ~80 s after its time (inexact alarm), generic text; alarm removed when the medication was deleted |
 | P6-002 | Biometric unlock | P3-004 | Settings + unlock | Enable requires biometric confirmation; PIN fallback | Implemented | Not verified on the device |
 | P6-003 | Maps/phone/email hand-off | P5-005 | `MapHandoffButton` | Confirmation before maps; only address shared | Verified (maps dialog) | The maps app itself was not opened (offline) |
-| P6-004 | Google sign-in | P5-001 | `auth/google.ts` | Works when OAuth client configured | Implemented | **Blocked for verification:** requires the owner's Google Cloud OAuth client (package + SHA-1) |
+| P6-004 | ~~Google sign-in~~ | P5-001 | — | — | Removed | Dropped at the owner's request (2026-10-10): profiles are local-only; see P9-002 |
 
 ## Phase 7 — Testing, documentation, demo preparation
 
@@ -94,4 +94,23 @@ No calendar estimates are given; tasks are ordered by dependency.
 |---|---|---|---|---|---|---|
 | P8-001 | Logical commits on `master` | — | Commits | Reviewed staged changes; no secrets/model/APK files | Verified | `git log`; the owner's uncommitted `app.json` EAS lines were never committed |
 | P8-002 | Push to `origin/master` after each phase | P8-001 | Remote branch | `git push origin master` succeeds without force | Verified | Fast-forward pushes only |
-| P8-003 | Final report | P8-002 | Summary | Hashes, push results, clean tree | In progress | Delivered with the last push |
+| P8-003 | Final report | P8-002 | Summary | Hashes, push results, clean tree | Verified | Delivered with the first round's last push |
+
+## Phase 9 — Follow-up requests (2026-10-10)
+
+Requested by the owner after the first device round. Evidence: [TESTING.md §4.1](TESTING.md#41-second-round-the-follow-up-requests).
+
+| ID | Request | Deliverable | Status | Evidence / notes |
+|---|---|---|---|---|
+| P9-001 | Pick dates instead of typing them; show dates as "Oct 4, 2026" | `DateField` / `TimeField` on `@expo/ui`'s `DateTimePicker` with limits and quick picks; `formatDate` everywhere, also in AI text | Verified | Birth date, treatment, medication, HMO validity, records; `test/logic.test.ts` |
+| P9-002 | Remove Google sign-in and OAuth | Sign-in screen and library removed; 6-step onboarding; local-only texts | Verified | Onboarding on the phone |
+| P9-003 | Remove mentions of a model family the project never used | Code and docs | Verified | A repository-wide search finds no mention |
+| P9-004 | Recommended model first; quantized models | `recommendModel` by RAM; "Recommended for this phone" section; quantization note | Verified | "This phone reports 6.1 GB of RAM …"; `test/logic.test.ts` |
+| P9-005 | Map of the nearest accredited clinics, hospitals, labs | Migration v3 coordinates, facility location (GPS, address lookup, coordinates, tap), `TileMap` on OpenStreetMap tiles, nearby list | Verified (pinch not testable over adb) | `test/geo.test.ts`, `test/db.test.ts`; OSM blocked a User-Agent containing "offline" — fixed |
+| P9-006 | Keyboard hides the chat input | keyboard-controller views; explicit header offset in chat; suggestions above fields | Verified | Forms, onboarding, chat |
+| P9-007 | Show when a message was sent | Tap a sent bubble → "Sent Oct 10, 2026, 4:48 AM" | Verified | Phone |
+| P9-008 | Wrong dates and slow answer for "last week Monday … thursday" | App-side relative dates + "Check the date" warning; parallel tool calls; vaccine shots filed as doses; shorter replies | Verified | Sep 28 and Oct 1 in one *Rabies vaccine* series, 84 s instead of about 3 min; `test/relative-dates.test.ts`, `test/services.test.ts`, `test/proposals.test.ts` |
+| P9-009 | Doctor form: camera or gallery, specialty suggestions, 5 phones and 5 emails; back stack after editing | `OptionDialog`, `suggestSpecialties`, per-field validation, `router.back()` after editing | Verified | Phone |
+| P9-010 | Treatments "+ Add" label | Single-line labels in shared components | Verified | "+ Add treatment" on the phone |
+| P9-011 | Attachments: processing state and several documents | Migration v2 `message_attachments` (up to 3), states in the picker, import times | Verified (two documents) | `test/db.test.ts`, `test/services.test.ts` |
+| P9-012 | Proprietary license | `LICENSE` (all rights reserved) and `"license": "UNLICENSED"` | Done | Holder named as the GitHub account owner |
