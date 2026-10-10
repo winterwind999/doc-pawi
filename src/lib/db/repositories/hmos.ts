@@ -78,9 +78,10 @@ export async function insertFacilityTx(
   const now = nowIso();
   const id = newId();
   await tx.run(
-    `INSERT INTO facilities (id, profile_id, name, facility_type, address, phone, notes, source_type, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, args.profileId, f.name, f.facility_type, f.address, f.phone, f.notes, args.sourceType, now, now],
+    `INSERT INTO facilities (id, profile_id, name, facility_type, address, phone, notes, latitude, longitude, source_type,
+       created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, args.profileId, f.name, f.facility_type, f.address, f.phone, f.notes, f.latitude, f.longitude, args.sourceType, now, now],
   );
   if (args.linkHmoId) {
     await tx.run('INSERT INTO hmo_facilities (hmo_id, facility_id, note, created_at) VALUES (?, ?, NULL, ?)', [
@@ -101,9 +102,33 @@ export async function createFacility(
 
 export async function updateFacility(db: DbExecutor, facilityId: string, f: FacilityInput) {
   await db.run(
-    'UPDATE facilities SET name = ?, facility_type = ?, address = ?, phone = ?, notes = ?, updated_at = ? WHERE id = ?',
-    [f.name, f.facility_type, f.address, f.phone, f.notes, nowIso(), facilityId],
+    `UPDATE facilities SET name = ?, facility_type = ?, address = ?, phone = ?, notes = ?, latitude = ?, longitude = ?,
+       updated_at = ? WHERE id = ?`,
+    [f.name, f.facility_type, f.address, f.phone, f.notes, f.latitude, f.longitude, nowIso(), facilityId],
   );
+}
+
+export interface AccreditedFacility extends FacilityRow {
+  /** HMOs the user linked this facility to (user-reported accreditation). */
+  hmos: { id: string; name: string }[];
+}
+
+/** Facilities linked to at least one of the profile's HMOs, with those HMOs, for the nearby map. */
+export async function listAccreditedFacilities(db: DbExecutor, profileId: string): Promise<AccreditedFacility[]> {
+  const rows = await db.all<FacilityRow & { hmos_json: string }>(
+    `SELECT f.*, json_group_array(json_object('id', h.id, 'name', h.provider_name)) AS hmos_json
+     FROM facilities f
+     JOIN hmo_facilities hf ON hf.facility_id = f.id
+     JOIN hmos h ON h.id = hf.hmo_id
+     WHERE f.profile_id = ?
+     GROUP BY f.id
+     ORDER BY f.name COLLATE NOCASE`,
+    [profileId],
+  );
+  return rows.map(({ hmos_json, ...f }) => ({
+    ...f,
+    hmos: (JSON.parse(hmos_json) as { id: string; name: string }[]).sort((a, b) => a.name.localeCompare(b.name)),
+  }));
 }
 
 export async function deleteFacility(db: DbExecutor, facilityId: string) {

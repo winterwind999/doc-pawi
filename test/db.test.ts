@@ -9,7 +9,15 @@ import {
 } from '@/lib/db/repositories/conversations';
 import { createDoctor, deleteDoctor, getDoctor } from '@/lib/db/repositories/doctors';
 import { insertDocument } from '@/lib/db/repositories/documents';
-import { getHmo, insertHmo } from '@/lib/db/repositories/hmos';
+import {
+  createFacility,
+  getFacility,
+  getHmo,
+  insertHmo,
+  linkFacility,
+  listAccreditedFacilities,
+  updateFacility,
+} from '@/lib/db/repositories/hmos';
 import {
   archiveMedication,
   createMedication,
@@ -28,6 +36,7 @@ import { insertEvent, insertTreatment, listUpcomingEvents } from '@/lib/db/repos
 import type { Db } from '@/lib/db/types';
 import {
   doctorInputSchema,
+  facilityInputSchema,
   hmoInputSchema,
   medicationInputSchema,
   recordInputSchema,
@@ -355,5 +364,53 @@ describe('doctors and HMOs', () => {
   it('validates phone numbers and emails', () => {
     expect(doctorInputSchema.safeParse({ name: 'X', phones: ['call me'], emails: [] }).success).toBe(false);
     expect(doctorInputSchema.safeParse({ name: 'X', phones: [], emails: ['not-an-email'] }).success).toBe(false);
+  });
+});
+
+describe('facility locations', () => {
+  const facility = (extra: Record<string, unknown>) =>
+    facilityInputSchema.parse({ name: 'Clinic', facility_type: 'clinic', ...extra });
+
+  it('saves coordinates and lists facilities linked to HMOs with those HMOs', async () => {
+    const db = await openTestDbWithProfile();
+    const a = await insertHmo(db, { profileId: PROFILE_ID, sourceType: 'manual', input: hmoInputSchema.parse({ provider_name: 'Alpha Care' }) });
+    const b = await insertHmo(db, { profileId: PROFILE_ID, sourceType: 'manual', input: hmoInputSchema.parse({ provider_name: 'Beta Health' }) });
+    const located = await createFacility(db, {
+      profileId: PROFILE_ID,
+      sourceType: 'manual',
+      input: facility({ name: 'Located Clinic', latitude: 14.5995, longitude: 120.9842 }),
+      linkHmoId: b,
+    });
+    await linkFacility(db, a, located);
+    const unlocated = await createFacility(db, { profileId: PROFILE_ID, sourceType: 'manual', input: facility({ name: 'No Pin Lab' }), linkHmoId: a });
+    // Not linked to any HMO, so not on the map.
+    await createFacility(db, { profileId: PROFILE_ID, sourceType: 'manual', input: facility({ name: 'Unlinked Clinic' }) });
+
+    const listed = await listAccreditedFacilities(db, PROFILE_ID);
+    expect(listed.map((f) => [f.name, f.latitude, f.longitude, f.hmos.map((h) => h.name)])).toEqual([
+      ['Located Clinic', 14.5995, 120.9842, ['Alpha Care', 'Beta Health']],
+      ['No Pin Lab', null, null, ['Alpha Care']],
+    ]);
+
+    await updateFacility(db, unlocated, facility({ name: 'No Pin Lab', latitude: 14.6, longitude: 121 }));
+    expect(await getFacility(db, unlocated)).toMatchObject({ latitude: 14.6, longitude: 121 });
+  });
+
+  it('requires both coordinates in range, in validation and in the database', async () => {
+    expect(facilityInputSchema.safeParse({ name: 'X', facility_type: 'clinic', latitude: 14.6 }).success).toBe(false);
+    expect(facilityInputSchema.safeParse({ name: 'X', facility_type: 'clinic', latitude: 91, longitude: 0 }).success).toBe(false);
+    const db = await openTestDbWithProfile();
+    const insert = (id: string, lat: number | null, lng: number | null) =>
+      db.run(
+        `INSERT INTO facilities (id, profile_id, name, facility_type, latitude, longitude, created_at, updated_at)
+         VALUES (?, ?, 'Clinic', 'clinic', ?, ?, 'n', 'n')`,
+        [id, PROFILE_ID, lat, lng],
+      );
+    await insert('f1', 14.5995, 120.9842);
+    await insert('f2', null, null);
+    await expect(insert('f3', 95, 0)).rejects.toThrow();
+    await expect(insert('f4', 0, 181)).rejects.toThrow();
+    await expect(insert('f5', 14.5, null)).rejects.toThrow();
+    await expect(insert('f6', null, 121)).rejects.toThrow();
   });
 });

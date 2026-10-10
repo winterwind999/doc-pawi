@@ -214,13 +214,28 @@ export const hmoInputSchema = z.object({
 });
 export type HmoInput = z.output<typeof hmoInputSchema>;
 
-export const facilityInputSchema = z.object({
-  name: requiredText('Facility name', 160),
-  facility_type: z.enum(FACILITY_TYPES, { error: 'Choose a facility type' }),
-  address: optionalText('Address', 300),
-  phone: optionalText('Phone', 40),
-  notes: optionalText('Notes', 2000),
-});
+const coordinate = (min: number, max: number) =>
+  z
+    .number()
+    .min(min, 'Location is outside the map')
+    .max(max, 'Location is outside the map')
+    .nullish()
+    .transform((v) => v ?? null);
+
+export const facilityInputSchema = z
+  .object({
+    name: requiredText('Facility name', 160),
+    facility_type: z.enum(FACILITY_TYPES, { error: 'Choose a facility type' }),
+    address: optionalText('Address', 300),
+    phone: optionalText('Phone', 40),
+    notes: optionalText('Notes', 2000),
+    latitude: coordinate(-90, 90),
+    longitude: coordinate(-180, 180),
+  })
+  .refine((f) => (f.latitude === null) === (f.longitude === null), {
+    path: ['latitude'],
+    message: 'Set both latitude and longitude, or neither',
+  });
 export type FacilityInput = z.output<typeof facilityInputSchema>;
 
 /** Flattens Zod issues to `{ fieldName: firstMessage }` for form display. */

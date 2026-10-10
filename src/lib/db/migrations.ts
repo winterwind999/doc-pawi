@@ -303,6 +303,17 @@ INSERT INTO message_attachments (message_id, document_id, position)
   SELECT id, attachment_document_id, 0 FROM messages WHERE attachment_document_id IS NOT NULL;
 `,
   },
+  {
+    version: 3,
+    name: 'facility_coordinates',
+    // WGS84 position of a saved facility for the nearby map; both set or both empty.
+    sql: `
+ALTER TABLE facilities ADD COLUMN latitude REAL CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90);
+ALTER TABLE facilities ADD COLUMN longitude REAL CHECK (
+  (longitude IS NULL) = (latitude IS NULL) AND (longitude IS NULL OR longitude BETWEEN -180 AND 180)
+);
+`,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

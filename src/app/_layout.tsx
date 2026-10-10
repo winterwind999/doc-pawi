@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { installNotificationHandler } from '@/lib/notifications/reminders';
@@ -35,21 +36,24 @@ export default function RootLayout() {
 
   const signedOut = status === 'signed_out' || status === 'booting';
   return (
-    // Keyboard events for the keyboard-aware views (edge-to-edge Android does not resize the window).
-    <KeyboardProvider>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surfaceMuted } }}>
-        <Stack.Protected guard={status === 'unlocked'}>
-          <Stack.Screen name="(app)" />
-        </Stack.Protected>
-        <Stack.Protected guard={status === 'locked'}>
-          <Stack.Screen name="unlock" />
-        </Stack.Protected>
-        <Stack.Protected guard={signedOut}>
-          <Stack.Screen name="welcome" />
-          <Stack.Screen name="onboarding" />
-        </Stack.Protected>
-      </Stack>
-    </KeyboardProvider>
+    // Gesture handling for the facility map; keyboard events for the keyboard-aware views
+    // (edge-to-edge Android does not resize the window).
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardProvider>
+        <StatusBar style="dark" />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.surfaceMuted } }}>
+          <Stack.Protected guard={status === 'unlocked'}>
+            <Stack.Screen name="(app)" />
+          </Stack.Protected>
+          <Stack.Protected guard={status === 'locked'}>
+            <Stack.Screen name="unlock" />
+          </Stack.Protected>
+          <Stack.Protected guard={signedOut}>
+            <Stack.Screen name="welcome" />
+            <Stack.Screen name="onboarding" />
+          </Stack.Protected>
+        </Stack>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
   );
 }

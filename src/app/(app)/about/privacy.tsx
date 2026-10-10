@@ -27,7 +27,10 @@ export default function PrivacyScreen() {
           body: [
             'There are no accounts or sign-in: each profile exists only on this phone.',
             'AI model download: the model file is downloaded once from Hugging Face. The request contains no personal data.',
-            'Maps and phone links: only when you tap “Open in Maps”, a call, or an email button, the address, number, or email is handed to another app.',
+            'Maps and phone links: only when you tap “Open in Maps” or “Directions”, a call, or an email button, the address or map position, number, or email is handed to another app.',
+            'Nearby facilities map: while you are online, map images are downloaded from OpenStreetMap (tile.openstreetmap.org). The requests reveal the map area on screen and your IP address, never your health data or which facilities you saved. Images already seen are kept in the app cache.',
+            'Your location is read only when you tap “Use my location” or “Use my current location” (GPS works offline). Doc Pawi uses it on the phone to sort facilities by distance or to save a facility’s position, and never sends it anywhere. Android’s location service itself may be provided by Google.',
+            '“Find from address” sends the address text you typed to the phone’s geocoding service (Google on most Android phones) to find its position. Doc Pawi asks first each time.',
             'Google ML Kit may send anonymous usage and performance metrics (for example, API latency and device model) to Google when the phone is online. It does not send your images or recognized text.',
             'Doc Pawi includes no analytics, advertising, or crash-reporting services.',
           ],

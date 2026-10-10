@@ -309,6 +309,9 @@ export interface FacilityRow {
   address: string | null;
   phone: string | null;
   notes: string | null;
+  /** WGS84 position (schema v3), set by the user; both null when unknown. */
+  latitude: number | null;
+  longitude: number | null;
   source_type: SourceType;
   created_at: string;
   updated_at: string;

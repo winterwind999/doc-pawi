@@ -13,6 +13,14 @@ export default function HmoScreen() {
   return (
     <Screen>
       <Button label="Add HMO / insurance" icon="plus" onPress={() => router.push('/hmo/new')} />
+      {hmos.data?.length ? (
+        <Button
+          label="Nearby accredited facilities"
+          icon="map-marker-radius-outline"
+          variant="secondary"
+          onPress={() => router.push('/facilities/map')}
+        />
+      ) : null}
       <Text className="text-xs leading-4 text-ink-muted">
         Saved HMO details and facilities are available offline. Coverage and accreditation shown here are what you
         entered — Doc Pawi does not verify them.

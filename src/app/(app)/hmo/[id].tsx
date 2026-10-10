@@ -56,6 +56,15 @@ export default function HmoDetailScreen() {
       <SectionHeader title="Saved facilities" actionLabel="Add facility" onAction={() => router.push({ pathname: '/facilities/edit', params: { hmoId: h.id } })} />
       <Text className="text-xs leading-4 text-ink-muted">User-reported. Doc Pawi does not verify accreditation; confirm with your HMO before a visit.</Text>
       {h.facilities.length ? (
+        <Button
+          label="Show nearest on map"
+          size="sm"
+          variant="outline"
+          icon="map-marker-radius-outline"
+          onPress={() => router.push({ pathname: '/facilities/map', params: { hmoId: h.id } })}
+        />
+      ) : null}
+      {h.facilities.length ? (
         h.facilities.map((f) => (
           <Card key={f.id} className="gap-2">
             <Text className="text-base font-semibold text-ink">{f.name}</Text>
@@ -64,8 +73,13 @@ export default function HmoDetailScreen() {
               {f.address ? ` · ${f.address}` : ''}
               {f.phone ? ` · ${f.phone}` : ''}
             </Text>
+            {f.latitude === null ? <Text className="text-xs text-ink-muted">No map location yet — tap Edit to add one.</Text> : null}
             <View className="flex-row flex-wrap gap-2">
-              {f.address ? <MapHandoffButton address={f.address} /> : null}
+              <MapHandoffButton
+                address={f.address}
+                coordinates={f.latitude !== null && f.longitude !== null ? { latitude: f.latitude, longitude: f.longitude } : null}
+                name={f.name}
+              />
               <Button label="Edit" size="sm" variant="ghost" icon="pencil-outline" onPress={() => router.push({ pathname: '/facilities/edit', params: { hmoId: h.id, facilityId: f.id } })} />
               <Button label="Unlink" size="sm" variant="ghost" icon="link-variant-off" onPress={() => void unlinkFacility(db, h.id, f.id)} />
             </View>
@@ -84,8 +98,9 @@ export default function HmoDetailScreen() {
         <Text className="text-sm text-ink-muted">Link doctors from their profile in the Doctors tab.</Text>
       )}
 
-      <Banner tone="neutral" icon="wifi-off">
-        Finding new accredited facilities online is not available in this version; all information here works offline.
+      <Banner tone="neutral" icon="information-outline">
+        Doc Pawi cannot look up which facilities your HMO accredits: HMOs do not publish a shared directory. Add the ones
+        your HMO lists (on its website, app, or hotline) with their location to see them on the map, nearest first.
       </Banner>
 
       <View className="flex-row gap-2">

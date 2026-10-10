@@ -22,7 +22,7 @@ const POINTS: { icon: IconName; title: string; text: string }[] = [
   {
     icon: 'wifi',
     title: 'When the internet is used',
-    text: 'There are no accounts. The internet is used only for the one-time AI model download from Hugging Face and for maps you open yourself. Google’s on-device text recognition may send anonymous usage statistics (never your images or text).',
+    text: 'There are no accounts. The internet is used only for the one-time AI model download from Hugging Face and for maps: OpenStreetMap map images and address lookups you ask for. Your location is used only when you tap a location button and stays on this phone. Google’s on-device text recognition may send anonymous usage statistics (never your images or text).',
   },
   {
     icon: 'doctor',

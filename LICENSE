@@ -33,5 +33,5 @@ These include, among others:
 - Qwen3 language model weights by the Qwen team, Alibaba Cloud, in GGUF form from ggml-org
   (Apache-2.0), downloaded by the user at run time and not distributed with the Software
 - Google ML Kit Text Recognition (ML Kit Terms of Service)
-- Leaflet (BSD-2-Clause) and map data from OpenStreetMap contributors (ODbL), used by the
-  in-app map
+- Map data © OpenStreetMap contributors (ODbL), shown as map images from the OpenStreetMap
+  Foundation's tile servers under their tile usage policy, downloaded at run time
