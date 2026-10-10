@@ -1,6 +1,6 @@
 import { ZodError } from 'zod';
 
-import { validateToolCall } from '@/lib/ai/agent-tools';
+import { vaccineSeriesName, validateToolCall } from '@/lib/ai/agent-tools';
 import { insertProposal, getProposal } from '@/lib/db/repositories/proposals';
 import { listRecords } from '@/lib/db/repositories/records';
 import { listTreatmentsWithEvents } from '@/lib/db/repositories/treatments';
@@ -103,6 +103,30 @@ describe('tool-call validation', () => {
     const r = validateToolCall({ name: 'propose_medical_record', arguments: { category: 'note', title: 'N', sql: 'DROP' } });
     expect(r.ok).toBe(true);
     expect(JSON.stringify(r)).not.toContain('DROP');
+  });
+
+  it('files a vaccine shot suggested as a visit as a vaccination dose (seen on the test phone)', () => {
+    const message = 'last week Monday i also had my first rabies shot and my 2nd was on thursday';
+    const r = validateToolCall(
+      { name: 'propose_medical_record', arguments: { category: 'visit', title: 'First rabies shot', event_date: '2026-09-28' } },
+      '2026-10-10',
+      message,
+    );
+    if (!r.ok || r.payload.kind !== 'treatment_event') throw new Error('expected a treatment event');
+    expect(r.payload.treatment).toMatchObject({ title: 'Rabies vaccine', kind: 'vaccination' });
+    expect(r.payload.event).toMatchObject({ title: 'First rabies shot', event_type: 'dose', status: 'completed', completed_date: '2026-09-28' });
+
+    // A real visit stays a visit.
+    const visit = validateToolCall({ name: 'propose_medical_record', arguments: { category: 'visit', title: 'Dental check-up' } }, '2026-10-10', 'I saw my dentist');
+    expect(visit.ok && visit.payload.kind).toBe('medical_record');
+  });
+
+  it('names vaccine series from dose titles', () => {
+    expect(vaccineSeriesName('First rabies shot')).toBe('Rabies vaccine');
+    expect(vaccineSeriesName('Flu shot')).toBe('Flu vaccine');
+    expect(vaccineSeriesName('Hepatitis B vaccine – dose 2')).toBe('Hepatitis B vaccine');
+    expect(vaccineSeriesName('COVID-19 booster')).toBe('COVID-19 vaccine');
+    expect(vaccineSeriesName('My 2nd shot')).toBe('Vaccine');
   });
 });
 

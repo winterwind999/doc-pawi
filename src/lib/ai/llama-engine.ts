@@ -33,6 +33,38 @@ export interface EngineInfo {
 export const ENGINE_NAME = 'llama.cpp via llama.rn 0.12.9';
 export const KV_CACHE_TYPE = 'q8_0';
 
+/**
+ * Workaround for llama.rn 0.12.9: `completion()` hands `parallel_tool_calls` to native code as the
+ * string "true" (via JSON.stringify), but the native side reads only booleans, so every turn was
+ * limited to one tool call ("my first shot … my 2nd …" produced one suggestion). llama.rn picks its
+ * JSI functions up from `global` once, when first used; this accessor wraps the chat-formatting
+ * function as it is installed so the flag arrives as a boolean. If llama.rn changes how it installs
+ * the function, the wrapper is simply never used and behaviour falls back to one call per turn.
+ */
+function passParallelToolCallsAsBoolean() {
+  const key = 'llamaGetFormattedChat';
+  const g = globalThis as unknown as Record<string, unknown>;
+  if (Object.getOwnPropertyDescriptor(g, key)) return;
+  let installed: unknown;
+  Object.defineProperty(g, key, {
+    configurable: true,
+    get: () => installed,
+    set: (fn: unknown) => {
+      installed =
+        typeof fn === 'function'
+          ? (...args: unknown[]) => {
+              const options = args[3] as { parallel_tool_calls?: unknown } | undefined;
+              if (options && typeof options.parallel_tool_calls === 'string') {
+                options.parallel_tool_calls = options.parallel_tool_calls === 'true';
+              }
+              return (fn as (...a: unknown[]) => unknown)(...args);
+            }
+          : fn;
+    },
+  });
+}
+passParallelToolCallsAsBoolean();
+
 export interface BenchMeasurement {
   threads: number;
   promptTokens: number;
@@ -240,6 +272,8 @@ export class LlamaEngine {
     if (request.tools?.length) {
       params.tools = request.tools as object;
       params.tool_choice = 'auto';
+      // Several events in one message need several tool calls (see passParallelToolCallsAsBoolean).
+      params.parallel_tool_calls = true as unknown as object;
     }
     if (request.jsonSchema) {
       params.response_format = { type: 'json_schema', json_schema: { strict: true, schema: request.jsonSchema } };

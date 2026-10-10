@@ -135,6 +135,55 @@ function facilityNotInMessage(facility: string | null, userMessage: string | und
   return !isGrounded(facility, normalizeForMatch(userMessage));
 }
 
+const VACCINE_WORDS = /\b(vaccines?|vaccinations?|shots?|jabs?|boosters?|bakuna|immuni[sz]ations?)\b/i;
+
+/** Names a vaccine series from a dose title: "First rabies shot" → "Rabies vaccine". */
+export function vaccineSeriesName(title: string) {
+  const core = title
+    .replace(/\b(?:dose|shot|jab|no\.?)\s*#?\d+\b/gi, ' ')
+    .replace(
+      /\b(?:first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th|doses?|shots?|jabs?|boosters?|vaccines?|vaccinations?|bakuna|immuni[sz]ations?|my|the|an?|of)\b/gi,
+      ' ',
+    )
+    .replace(/[#–—]|\s-\s/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return core ? `${core.charAt(0).toUpperCase()}${core.slice(1)} vaccine` : 'Vaccine';
+}
+
+function eventOutcome(a: z.output<typeof proposeEventArgs>, today: string, userMessage?: string): ToolCallOutcome {
+  const warnings: string[] = [];
+  let date = a.date;
+  if (date && a.status === 'completed' && date > today) {
+    warnings.push(`A completed event cannot be dated in the future (${date}); please check the date.`);
+    date = null;
+  }
+  if (date && a.status === 'scheduled' && date < today) {
+    warnings.push(`A scheduled event cannot be in the past (${date}); please check the date.`);
+    date = null;
+  }
+  return {
+    ok: true,
+    name: 'propose_treatment_event',
+    warnings,
+    payload: {
+      kind: 'treatment_event',
+      treatment: { title: a.treatment_name, kind: a.treatment_type, existing_treatment_id: null },
+      event: {
+        title: a.event_title,
+        event_type: a.treatment_type === 'vaccination' ? 'dose' : a.treatment_type === 'therapy' ? 'session' : 'other',
+        status: a.status,
+        scheduled_date: a.status === 'scheduled' ? date : null,
+        completed_date: a.status === 'completed' ? date : null,
+        facility: a.facility,
+        notes: a.notes,
+      },
+      unverified_fields: [...(date ? [] : ['date']), ...(facilityNotInMessage(a.facility, userMessage) ? ['facility'] : [])],
+      warnings,
+    },
+  };
+}
+
 /**
  * Validates one model-generated tool call and converts it to a proposal payload.
  * Dates the model produced are checked against today; impossible values become warnings and the
@@ -149,6 +198,28 @@ export function validateToolCall(call: RawToolCall, today: string = todayLocal()
     const parsed = proposeRecordArgs.safeParse(args);
     if (!parsed.success) return { ok: false, name: call.name, error: parsed.error.issues[0]?.message ?? 'Invalid arguments' };
     const a = parsed.data;
+    // The small model sometimes files a vaccine shot as a visit or procedure (on the test phone:
+    // "First rabies shot", category visit). Vaccine doses belong in a vaccination series, as the
+    // system prompt asks, so such a suggestion becomes a dose event. The user still confirms it.
+    const vaccineShot =
+      ['visit', 'procedure', 'note'].includes(a.category) &&
+      VACCINE_WORDS.test(a.title) &&
+      (userMessage === undefined || VACCINE_WORDS.test(userMessage));
+    if (vaccineShot) {
+      return eventOutcome(
+        {
+          treatment_name: vaccineSeriesName(a.title),
+          treatment_type: 'vaccination',
+          event_title: a.title,
+          status: a.event_date && a.event_date > today ? 'scheduled' : 'completed',
+          date: a.event_date,
+          facility: a.facility,
+          notes: a.summary,
+        },
+        today,
+        userMessage,
+      );
+    }
     const warnings: string[] = [];
     let eventDate = a.event_date;
     if (eventDate && eventDate > today) {
@@ -181,37 +252,7 @@ export function validateToolCall(call: RawToolCall, today: string = todayLocal()
   if (call.name === 'propose_treatment_event') {
     const parsed = proposeEventArgs.safeParse(args);
     if (!parsed.success) return { ok: false, name: call.name, error: parsed.error.issues[0]?.message ?? 'Invalid arguments' };
-    const a = parsed.data;
-    const warnings: string[] = [];
-    let date = a.date;
-    if (date && a.status === 'completed' && date > today) {
-      warnings.push(`A completed event cannot be dated in the future (${date}); please check the date.`);
-      date = null;
-    }
-    if (date && a.status === 'scheduled' && date < today) {
-      warnings.push(`A scheduled event cannot be in the past (${date}); please check the date.`);
-      date = null;
-    }
-    return {
-      ok: true,
-      name: 'propose_treatment_event',
-      warnings,
-      payload: {
-        kind: 'treatment_event',
-        treatment: { title: a.treatment_name, kind: a.treatment_type, existing_treatment_id: null },
-        event: {
-          title: a.event_title,
-          event_type: a.treatment_type === 'vaccination' ? 'dose' : a.treatment_type === 'therapy' ? 'session' : 'other',
-          status: a.status,
-          scheduled_date: a.status === 'scheduled' ? date : null,
-          completed_date: a.status === 'completed' ? date : null,
-          facility: a.facility,
-          notes: a.notes,
-        },
-        unverified_fields: [...(date ? [] : ['date']), ...(facilityNotInMessage(a.facility, userMessage) ? ['facility'] : [])],
-        warnings,
-      },
-    };
+    return eventOutcome(parsed.data, today, userMessage);
   }
 
   return { ok: false, name: call.name, error: `Unknown tool "${call.name}" was ignored.` };
