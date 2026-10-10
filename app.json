@@ -88,6 +88,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2e739da8-cf38-42a0-849b-c34d76150b35"
+      }
+    },
+    "owner": "jordanfaciols-team"
   }
 }
