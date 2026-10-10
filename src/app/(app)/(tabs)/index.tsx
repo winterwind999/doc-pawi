@@ -68,11 +68,13 @@ export default function HomeScreen() {
 
           <View className="flex-row gap-2">
             <Button label="Ask Doc Pawi" icon="chat-plus-outline" className="flex-1" onPress={() => router.push('/chats')} />
+            {/* Short label: "Import document" does not fit half the width of a 360 dp phone. */}
             <Button
-              label="Import document"
+              label="Import"
               icon="file-upload-outline"
               variant="secondary"
               className="flex-1"
+              accessibilityHint="Import a photo or PDF of a medical document"
               onPress={() => router.push('/documents/import')}
             />
           </View>
