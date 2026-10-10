@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Text, TextInput, View, type KeyboardTypeOptions, type TextInputProps } from 'react-native';
 
 import { colors } from '@/theme/colors';
@@ -15,6 +15,7 @@ export interface TextFieldProps {
   keyboardType?: KeyboardTypeOptions;
   autoCapitalize?: TextInputProps['autoCapitalize'];
   autoComplete?: TextInputProps['autoComplete'];
+  autoCorrect?: boolean;
   maxLength?: number;
   editable?: boolean;
   className?: string;
@@ -23,6 +24,11 @@ export interface TextFieldProps {
   returnKeyType?: TextInputProps['returnKeyType'];
   onFocus?: () => void;
   onBlur?: () => void;
+  /**
+   * Shown between the label and the input, e.g. suggestions. Content below the input would be
+   * hidden behind the keyboard and the form's sticky footer while typing.
+   */
+  accessory?: ReactNode;
 }
 
 export function TextField({
@@ -37,6 +43,7 @@ export function TextField({
   keyboardType,
   autoCapitalize = 'sentences',
   autoComplete,
+  autoCorrect,
   maxLength,
   editable = true,
   className = '',
@@ -45,6 +52,7 @@ export function TextField({
   returnKeyType,
   onFocus,
   onBlur,
+  accessory,
 }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
   const border = error ? 'border-coral-500' : focused ? 'border-primary-500' : 'border-line-strong';
@@ -54,6 +62,7 @@ export function TextField({
         {label}
         {required ? <Text className="text-coral-600"> *</Text> : null}
       </Text>
+      {accessory}
       <TextInput
         testID={testID}
         value={value}
@@ -64,6 +73,7 @@ export function TextField({
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         autoComplete={autoComplete}
+        autoCorrect={autoCorrect}
         maxLength={maxLength}
         editable={editable}
         onFocus={() => {

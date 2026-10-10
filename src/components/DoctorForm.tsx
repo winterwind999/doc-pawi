@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { Directory, File, Paths } from 'expo-file-system';
 import { useState } from 'react';
-import { Image, Linking, Pressable, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
@@ -143,38 +143,45 @@ export function DoctorForm({ existing }: { existing?: DoctorWithHmos }) {
         onCancel={() => setPhotoChoice(false)}
       />
       <TextField label="Name" value={name} onChangeText={setName} required error={errors.name} autoCapitalize="words" placeholder="e.g. Dr. Ana Cruz" />
-      <View className="gap-2">
-        <TextField
-          label="Specialty"
-          value={specialty}
-          onChangeText={setSpecialty}
-          onFocus={() => setSpecialtyFocused(true)}
-          onBlur={() => setTimeout(() => setSpecialtyFocused(false), 150)}
-          error={errors.specialty}
-          placeholder="e.g. Pediatrics"
-          autoCapitalize="words"
-        />
-        {suggestions.length ? (
-          <View accessibilityLabel="Specialty suggestions" className="flex-row flex-wrap gap-2">
-            {suggestions.map((s) => (
-              <Pressable
-                key={s}
-                onPress={() => {
-                  setSpecialty(s);
-                  setSpecialtyFocused(false);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Use specialty ${s}`}
-                className="min-h-[36px] justify-center rounded-full border border-line-strong bg-surface px-3 active:bg-primary-50"
-              >
-                <Text numberOfLines={1} className="text-sm text-ink">
-                  {s}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-      </View>
+      <TextField
+        label="Specialty"
+        value={specialty}
+        onChangeText={setSpecialty}
+        onFocus={() => setSpecialtyFocused(true)}
+        onBlur={() => setTimeout(() => setSpecialtyFocused(false), 150)}
+        error={errors.specialty}
+        placeholder="e.g. Pediatrics"
+        autoCapitalize="words"
+        // Above the input, so the keyboard and the Save bar never cover the suggestions.
+        accessory={
+          suggestions.length ? (
+            <ScrollView
+              horizontal
+              keyboardShouldPersistTaps="handled"
+              showsHorizontalScrollIndicator={false}
+              accessibilityLabel="Specialty suggestions"
+              contentContainerClassName="gap-2 pr-2"
+            >
+              {suggestions.map((s) => (
+                <Pressable
+                  key={s}
+                  onPress={() => {
+                    setSpecialty(s);
+                    setSpecialtyFocused(false);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Use specialty ${s}`}
+                  className="min-h-[36px] justify-center rounded-full border border-line-strong bg-surface px-3 active:bg-primary-50"
+                >
+                  <Text numberOfLines={1} className="text-sm text-ink">
+                    {s}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : null
+        }
+      />
       <TextField label="Clinic, hospital, or organization" value={organization} onChangeText={setOrganization} error={errors.organization} />
       <TextField label="Address" value={address} onChangeText={setAddress} multiline error={errors.address} />
       <SectionHeader title="Phone numbers" />
