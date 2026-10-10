@@ -114,7 +114,11 @@ export async function sendChatMessage(args: {
       const excerpt = a.text.length > budget ? `${a.text.slice(0, budget)}…` : a.text;
       return `Attached document "${a.name}" (on-device OCR text or summary; may contain recognition errors):\n${excerpt}`;
     });
-    retrieval.contextText = `${blocks.join('\n\n')}\n\n${retrieval.contextText}`;
+    // On the test phone the model answered a question about two attached reports with a "save
+    // this" suggestion. The documents are already stored; they are there to answer from.
+    const intro =
+      'The user attached documents that are already saved in Doc Pawi. Answer the question from them in words; do not suggest saving them.';
+    retrieval.contextText = `${intro}\n\n${blocks.join('\n\n')}\n\n${retrieval.contextText}`;
     retrieval.sources.unshift(...attachments.map((a) => ({ type: 'document' as const, id: a.documentId, label: a.name })));
   }
 

@@ -1,4 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -13,6 +14,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Mascot } from '@/components/ui/Layout';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useLiveQuery } from '@/hooks/use-live-query';
+import { formatTimestamp } from '@/lib/dates';
 import type { MedicalDocumentRow, MessageRow, RecordProposalRow } from '@/lib/db/models';
 import { getConversation, listMessageAttachments, listMessages } from '@/lib/db/repositories/conversations';
 import { listDocuments } from '@/lib/db/repositories/documents';
@@ -57,6 +59,7 @@ export default function ChatScreen() {
   const runningJobs = useDocumentJobs((s) => s.running);
   const generatingHere = streamConversation === id;
   const modelStatus = useModelStatus();
+  const headerHeight = useHeaderHeight();
 
   const data = useLiveQuery(
     async (db) => {
@@ -146,8 +149,10 @@ export default function ChatScreen() {
     <SafeAreaView edges={['bottom']} className="flex-1 bg-surface-muted">
       <Stack.Screen options={{ title: data.data?.conversation?.title ?? 'Conversation' }} />
       {/* Android 15+ draws edge to edge, so the window does not shrink for the keyboard: this view
-          adds bottom padding equal to the keyboard and measures its own offset below the header. */}
-      <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
+          adds bottom padding for the part of the keyboard that covers it. The offset is the header
+          (with the status bar) above the screen; the library's automaticOffset measured 0 on the
+          test phone and left the composer behind the keyboard. */}
+      <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={headerHeight} style={{ flex: 1 }}>
         <FlatList
           ref={listRef}
           data={messages}
@@ -228,7 +233,7 @@ export default function ChatScreen() {
                     onPress={disabled ? undefined : () => toggleAttachment(d)}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: selected, disabled }}
-                    accessibilityLabel={`${d.display_name}, ${state.label}`}
+                    accessibilityLabel={`${d.display_name}, imported ${formatTimestamp(d.imported_at)}, ${state.label}`}
                     className={`min-h-[52px] flex-row items-center gap-2 rounded-xl px-2 py-1.5 ${disabled ? 'opacity-50' : 'active:bg-surface-sunken'}`}
                   >
                     <Icon
@@ -240,7 +245,11 @@ export default function ChatScreen() {
                       <Text className="text-sm text-ink" numberOfLines={1}>
                         {d.display_name}
                       </Text>
-                      <StatusBadge label={state.label} tone={state.tone} />
+                      {/* The import time tells apart documents with the same file name. */}
+                      <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
+                        <StatusBadge label={state.label} tone={state.tone} />
+                        <Text className="text-xs text-ink-muted">{formatTimestamp(d.imported_at)}</Text>
+                      </View>
                     </View>
                   </Pressable>
                 );
